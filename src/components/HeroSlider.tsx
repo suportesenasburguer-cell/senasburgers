@@ -38,6 +38,9 @@ const HeroSlider = () => {
           <img
             src={slide.image}
             alt={slide.alt}
+            loading={index === 0 ? 'eager' : 'lazy'}
+            decoding="async"
+            fetchPriority={index === 0 ? 'high' : 'low'}
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />

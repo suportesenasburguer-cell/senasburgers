@@ -1,4 +1,4 @@
-import { Package, LayoutGrid, Gift, Layers, Tag, Star, ClipboardList, BarChart3, LogOut, Home } from 'lucide-react';
+import { Package, LayoutGrid, Gift, Layers, Tag, Star, ClipboardList, BarChart3, LogOut, Home, Ticket } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/use-auth';
 import {
@@ -15,7 +15,7 @@ import {
   SidebarSeparator,
 } from '@/components/ui/sidebar';
 
-type AdminTab = 'products' | 'categories' | 'upsells' | 'promotions' | 'addons' | 'rewards';
+type AdminTab = 'products' | 'categories' | 'upsells' | 'promotions' | 'addons' | 'rewards' | 'coupons';
 
 interface AdminSidebarProps {
   activeTab: AdminTab;
@@ -28,6 +28,7 @@ const menuItems: { tab: AdminTab; label: string; icon: typeof Package }[] = [
   { tab: 'upsells', label: 'Ofertas Combo', icon: Gift },
   { tab: 'addons', label: 'Adicionais', icon: Layers },
   { tab: 'promotions', label: 'Promoções', icon: Tag },
+  { tab: 'coupons', label: 'Cupons', icon: Ticket },
   { tab: 'rewards', label: 'Recompensas', icon: Star },
 ];
 

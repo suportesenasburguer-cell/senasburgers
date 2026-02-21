@@ -2,7 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { CartItem } from '@/contexts/CartContext';
 
 interface SaveOrderParams {
-  userId: string;
+  userId?: string | null;
   items: CartItem[];
   total: number;
   deliveryFee: number;
@@ -12,27 +12,38 @@ interface SaveOrderParams {
   observation: string;
   customerName?: string;
   customerPhone?: string;
+  referencePoint?: string;
 }
 
 export const saveCustomerOrder = async (params: SaveOrderParams) => {
-  const { userId, items, total, deliveryFee, paymentMethod, deliveryType, address, observation } = params;
+  const { userId, items, total, deliveryFee, paymentMethod, deliveryType, address, observation, customerName, customerPhone, referencePoint } = params;
   
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
 
   // Insert order
+  const insertData: any = {
+    total: total + deliveryFee,
+    delivery_fee: deliveryFee,
+    payment_method: paymentMethod,
+    delivery_type: deliveryType,
+    address: address || null,
+    observation: observation || null,
+    status: 'sent',
+    item_count: totalItems,
+  };
+
+  if (userId) {
+    insertData.user_id = userId;
+  }
+
+  // Add guest/customer info
+  if (customerName) insertData.customer_name = customerName;
+  if (customerPhone) insertData.customer_phone = customerPhone;
+  if (referencePoint) insertData.reference_point = referencePoint;
+
   const { data: order, error: orderError } = await (supabase as any)
     .from('customer_orders')
-    .insert({
-      user_id: userId,
-      total: total + deliveryFee,
-      delivery_fee: deliveryFee,
-      payment_method: paymentMethod,
-      delivery_type: deliveryType,
-      address: address || null,
-      observation: observation || null,
-      status: 'sent',
-      item_count: totalItems,
-    })
+    .insert(insertData)
     .select('id')
     .single();
 

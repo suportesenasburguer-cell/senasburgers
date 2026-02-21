@@ -5,8 +5,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { awardLoyaltyPoints } from '@/lib/order-service';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
-import { ArrowLeft, Clock, ChefHat, Truck, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Clock, ChefHat, Truck, CheckCircle2, XCircle, RefreshCw, Printer, Volume2, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import AdminSoundSelector, { playSelectedSound } from '@/components/AdminSoundSelector';
+import OrderReceiptPreview from '@/components/OrderReceiptPreview';
 
 interface OrderItem {
   id: string;
@@ -28,6 +30,9 @@ interface Order {
   status: string;
   item_count: number;
   created_at: string;
+  customer_name: string | null;
+  customer_phone: string | null;
+  reference_point: string | null;
   items?: OrderItem[];
 }
 
@@ -48,6 +53,9 @@ const AdminPedidos = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('active');
+  const [orderCount, setOrderCount] = useState(0);
+  const [showSoundSettings, setShowSoundSettings] = useState(false);
+  const [previewOrder, setPreviewOrder] = useState<Order | null>(null);
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin)) {
@@ -84,13 +92,23 @@ const AdminPedidos = () => {
     if (isAdmin) fetchOrders();
   }, [isAdmin, fetchOrders]);
 
-  // Real-time subscription
+  // Track order count for sound alerts
+  useEffect(() => {
+    setOrderCount(orders.length);
+  }, [orders.length]);
+
+  // Real-time subscription with sound alert
   useEffect(() => {
     if (!isAdmin) return;
 
     const channel = (supabase as any)
       .channel('admin-orders')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'customer_orders' }, () => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'customer_orders' }, () => {
+        playSelectedSound();
+        toast({ title: '🔔 Novo pedido recebido!' });
+        fetchOrders();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'customer_orders' }, () => {
         fetchOrders();
       })
       .subscribe();
@@ -147,6 +165,83 @@ const AdminPedidos = () => {
     return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   };
 
+  const printOrder = (order: Order) => {
+    const win = window.open('', '_blank', 'width=400,height=600');
+    if (!win) return;
+
+    const paymentLabels: Record<string, string> = {
+      cartao: 'Cartão',
+      dinheiro: 'Dinheiro',
+      pix: 'PIX',
+    };
+
+    const statusLabels: Record<string, string> = {
+      sent: 'Recebido',
+      preparing: 'Preparando',
+      delivering: 'Saiu p/ Entrega',
+      delivered: 'Entregue',
+      completed: 'Finalizado',
+      cancelled: 'Cancelado',
+    };
+
+    const subtotal = (order.items || []).reduce((s, i) => s + i.unit_price * i.quantity, 0);
+
+    const itemsHtml = (order.items || []).map(item =>
+      `<tr>
+        <td>${item.quantity}x ${item.product_name}</td>
+        <td style="text-align:right;white-space:nowrap">${formatPrice(item.unit_price * item.quantity)}</td>
+      </tr>
+      ${item.extras ? `<tr><td colspan="2" style="padding:0 0 2px 12px;font-size:11px;color:#555">+ ${item.extras}</td></tr>` : ''}`
+    ).join('');
+
+    const fullDate = new Date(order.created_at).toLocaleString('pt-BR', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Comanda</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Courier New',Courier,monospace;font-size:12px;width:100%;max-width:80mm;margin:0 auto;padding:4px;color:#000;line-height:1.4}
+.center{text-align:center}
+.bold{font-weight:bold}
+.divider{border:none;border-top:1px dashed #000;margin:4px 0}
+table{width:100%;border-collapse:collapse}
+td{padding:1px 0;vertical-align:top}
+.total-row td{font-size:14px;font-weight:bold;padding-top:4px}
+.info-row{font-size:11px;padding:1px 0}
+@media print{body{margin:0;padding:2px}@page{margin:0;size:80mm auto}}
+</style></head><body>
+<p class="center bold" style="font-size:14px">COMANDA</p>
+<p class="center" style="font-size:11px">#${order.id.slice(0, 8).toUpperCase()}</p>
+<p class="center" style="font-size:10px">${fullDate}</p>
+<p class="center" style="font-size:10px">Status: ${statusLabels[order.status] || order.status}</p>
+<hr class="divider">
+<table>${itemsHtml}</table>
+<hr class="divider">
+<table>
+<tr><td>Subtotal</td><td style="text-align:right">${formatPrice(subtotal)}</td></tr>
+${order.delivery_fee > 0 ? `<tr><td>Taxa entrega</td><td style="text-align:right">${formatPrice(order.delivery_fee)}</td></tr>` : ''}
+${order.total !== subtotal + order.delivery_fee ? `<tr><td>Desconto</td><td style="text-align:right">-${formatPrice(subtotal + order.delivery_fee - order.total)}</td></tr>` : ''}
+</table>
+<hr class="divider">
+<table><tr class="total-row"><td>TOTAL</td><td style="text-align:right">${formatPrice(order.total)}</td></tr></table>
+<hr class="divider">
+${order.customer_name ? `<p class="info-row"><b>Cliente:</b> ${order.customer_name}</p>` : ''}
+${order.customer_phone ? `<p class="info-row"><b>Telefone:</b> ${order.customer_phone}</p>` : ''}
+<p class="info-row"><b>Pagamento:</b> ${paymentLabels[order.payment_method] || order.payment_method}</p>
+<p class="info-row"><b>Entrega:</b> ${order.delivery_type === 'delivery' ? 'Delivery' : 'Retirada na loja'}</p>
+${order.address ? `<p class="info-row"><b>Endereço:</b> ${order.address}</p>` : ''}
+${order.reference_point ? `<p class="info-row"><b>Ref:</b> ${order.reference_point}</p>` : ''}
+${order.observation ? `<p class="info-row"><b>Obs:</b> ${order.observation}</p>` : ''}
+<p class="info-row"><b>Itens:</b> ${order.item_count}</p>
+<hr class="divider">
+<p class="center" style="font-size:10px;margin-top:2px">Sena's Burgers</p>
+<script>window.onload=()=>{window.print();window.close()}<\/script>
+</body></html>`);
+    win.document.close();
+  };
+
   const filteredOrders = orders.filter(o => {
     if (filter === 'active') return !['completed', 'cancelled'].includes(o.status);
     if (filter === 'completed') return o.status === 'completed';
@@ -174,13 +269,28 @@ const AdminPedidos = () => {
               <span className="text-gradient-burger">Pedidos</span>
             </h1>
           </div>
-          <Button variant="outline" size="sm" onClick={fetchOrders}>
-            <RefreshCw className="w-4 h-4 mr-2" /> Atualizar
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setShowSoundSettings(v => !v)}
+              className={showSoundSettings ? 'border-primary text-primary' : ''}
+            >
+              <Volume2 className="w-4 h-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={fetchOrders}>
+              <RefreshCw className="w-4 h-4 mr-2" /> Atualizar
+            </Button>
+          </div>
         </div>
       </header>
 
       <div className="container px-4 py-6">
+        {showSoundSettings && (
+          <div className="bg-card border border-border rounded-xl p-5 mb-6">
+            <AdminSoundSelector />
+          </div>
+        )}
         {/* Filters */}
         <div className="flex gap-2 mb-6 flex-wrap">
           {[
@@ -249,39 +359,64 @@ const AdminPedidos = () => {
                   )}
                 </div>
 
+                {/* Customer Info */}
+                {(order.customer_name || order.customer_phone) && (
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-foreground mb-2 font-medium">
+                    {order.customer_name && <span>👤 {order.customer_name}</span>}
+                    {order.customer_phone && <span>📞 {order.customer_phone}</span>}
+                  </div>
+                )}
+
                 {/* Info */}
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground mb-3">
                   <span>📦 {order.delivery_type === 'delivery' ? 'Entrega' : 'Retirada'}</span>
                   <span>💳 {order.payment_method}</span>
                   {order.address && <span>📍 {order.address}</span>}
+                  {order.reference_point && <span>🏷️ Ref: {order.reference_point}</span>}
                   {order.observation && <span>📝 {order.observation}</span>}
                 </div>
 
                 {/* Actions */}
-                {order.status !== 'completed' && order.status !== 'cancelled' && (
-                  <div className="flex gap-2">
-                    {canAdvance && nextStatus && (
+                <div className="flex gap-2 flex-wrap">
+                  {order.status !== 'completed' && order.status !== 'cancelled' && (
+                    <>
+                      {canAdvance && nextStatus && (
+                        <Button
+                          size="sm"
+                          className="gradient-burger text-primary-foreground"
+                          onClick={() => advanceStatus(order)}
+                        >
+                          {STATUS_CONFIG[nextStatus]?.icon}
+                          <span className="ml-1.5">
+                            {nextStatus === 'completed' ? 'Finalizar Pedido' : `Avançar → ${STATUS_CONFIG[nextStatus]?.label}`}
+                          </span>
+                        </Button>
+                      )}
                       <Button
+                        variant="outline"
                         size="sm"
-                        className="gradient-burger text-primary-foreground"
-                        onClick={() => advanceStatus(order)}
+                        onClick={() => cancelOrder(order)}
+                        className="hover:text-destructive hover:border-destructive"
                       >
-                        {STATUS_CONFIG[nextStatus]?.icon}
-                        <span className="ml-1.5">
-                          {nextStatus === 'completed' ? 'Finalizar Pedido' : `Avançar → ${STATUS_CONFIG[nextStatus]?.label}`}
-                        </span>
+                        <XCircle className="w-4 h-4 mr-1" /> Cancelar
                       </Button>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => cancelOrder(order)}
-                      className="hover:text-destructive hover:border-destructive"
-                    >
-                      <XCircle className="w-4 h-4 mr-1" /> Cancelar
-                    </Button>
-                  </div>
-                )}
+                    </>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPreviewOrder(order)}
+                  >
+                    <Eye className="w-4 h-4 mr-1" /> Preview
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => printOrder(order)}
+                  >
+                    <Printer className="w-4 h-4 mr-1" /> Imprimir
+                  </Button>
+                </div>
               </div>
             );
           })}
@@ -294,6 +429,13 @@ const AdminPedidos = () => {
           </div>
         )}
       </div>
+
+      <OrderReceiptPreview
+        order={previewOrder}
+        open={!!previewOrder}
+        onOpenChange={(open) => !open && setPreviewOrder(null)}
+        onPrint={printOrder}
+      />
     </div>
   );
 };

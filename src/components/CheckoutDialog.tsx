@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
-import { MessageCircle, CreditCard, Banknote, QrCode, MapPin, Store, Gift, X } from 'lucide-react';
+import { MessageCircle, CreditCard, Banknote, QrCode, MapPin, Store, Gift, X, User, Phone, Navigation, Ticket, Check } from 'lucide-react';
 import { CartItem } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useCustomerAuth } from '@/hooks/use-customer-auth';
+import { useCoupons, Coupon } from '@/hooks/use-coupons';
 import { cn } from '@/lib/utils';
 
 interface CheckoutDialogProps {
@@ -26,6 +28,9 @@ export interface CheckoutData {
   observation: string;
   appliedRedemptionId?: string;
   discount?: number;
+  customerName: string;
+  customerPhone: string;
+  referencePoint: string;
 }
 
 interface PendingRedemption {
@@ -50,12 +55,19 @@ const getDiscountFromType = (rewardType: string): number => {
 
 const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: CheckoutDialogProps) => {
   const { user } = useCustomerAuth();
+  const { validateCoupon } = useCoupons();
   const [paymentMethod, setPaymentMethod] = useState('');
   const [deliveryType, setDeliveryType] = useState<'delivery' | 'pickup' | ''>('');
   const [address, setAddress] = useState('');
   const [observation, setObservation] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [referencePoint, setReferencePoint] = useState('');
   const [pendingRedemptions, setPendingRedemptions] = useState<PendingRedemption[]>([]);
   const [selectedRedemptionId, setSelectedRedemptionId] = useState<string | null>(null);
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+  const [couponError, setCouponError] = useState('');
 
   useEffect(() => {
     if (open && user) {
@@ -63,6 +75,9 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
     }
     if (!open) {
       setSelectedRedemptionId(null);
+      setCouponCode('');
+      setAppliedCoupon(null);
+      setCouponError('');
     }
   }, [open, user]);
 
@@ -105,15 +120,45 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
 
   const selectedRedemption = pendingRedemptions.find(r => r.id === selectedRedemptionId);
 
-  const isFreeDelivery = selectedRedemption?.reward_type === 'free_delivery';
+  const isFreeDelivery = selectedRedemption?.reward_type === 'free_delivery' || appliedCoupon?.type === 'free_delivery';
   const discountPercent = selectedRedemption ? getDiscountFromType(selectedRedemption.reward_type) : 0;
 
   const baseDeliveryFee = deliveryType === 'delivery' ? DELIVERY_FEE : 0;
   const deliveryFee = isFreeDelivery ? 0 : baseDeliveryFee;
-  const discountAmount = discountPercent > 0 ? total * discountPercent : 0;
+  const rewardDiscount = discountPercent > 0 ? total * discountPercent : 0;
+
+  let couponDiscount = 0;
+  if (appliedCoupon) {
+    if (appliedCoupon.type === 'percentage') {
+      couponDiscount = total * (appliedCoupon.value / 100);
+    } else if (appliedCoupon.type === 'fixed') {
+      couponDiscount = Math.min(appliedCoupon.value, total);
+    }
+  }
+
+  const discountAmount = rewardDiscount + couponDiscount;
   const finalTotal = total - discountAmount + deliveryFee;
 
-  const isValid = paymentMethod && deliveryType && (deliveryType === 'pickup' || address.trim());
+  const handleApplyCoupon = () => {
+    setCouponError('');
+    if (!couponCode.trim()) return;
+    const coupon = validateCoupon(couponCode);
+    if (coupon) {
+      setAppliedCoupon(coupon);
+      setCouponError('');
+    } else {
+      setAppliedCoupon(null);
+      setCouponError('Cupom inválido ou expirado');
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode('');
+    setCouponError('');
+  };
+
+  const isValid = paymentMethod && deliveryType && customerName.trim() && customerPhone.trim() && (deliveryType === 'pickup' || address.trim());
 
   const handleConfirm = async () => {
     if (!isValid) return;
@@ -134,6 +179,9 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
       observation: observation.trim(),
       appliedRedemptionId: selectedRedemptionId || undefined,
       discount: discountAmount,
+      customerName: customerName.trim(),
+      customerPhone: customerPhone.trim(),
+      referencePoint: referencePoint.trim(),
     });
   };
 
@@ -163,7 +211,29 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 py-2">
+        <div className="space-y-5 py-2">
+          {/* Customer Info */}
+          <div className="space-y-3">
+            <Label className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <User className="w-4 h-4 text-primary" />
+              Seus Dados
+            </Label>
+            <div className="space-y-2">
+              <Input
+                placeholder="Seu nome *"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                className="bg-background border-border"
+              />
+              <Input
+                placeholder="Telefone (WhatsApp) *"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                className="bg-background border-border"
+                type="tel"
+              />
+            </div>
+          </div>
           {/* Pending Rewards */}
           {pendingRedemptions.length > 0 && (
             <div className="space-y-3">
@@ -276,16 +346,23 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
           {/* Address (only for delivery) */}
           {deliveryType === 'delivery' && (
             <div className="space-y-2 animate-fade-in">
-              <Label htmlFor="address" className="text-sm font-semibold text-foreground">
+              <Label htmlFor="address" className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-primary" />
                 Endereço de Entrega
               </Label>
               <Textarea
                 id="address"
-                placeholder="Rua, Nº, Complemento, Bairro, Cidade"
+                placeholder="Rua, Nº, Complemento, Bairro, Cidade *"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 className="resize-none bg-background border-border"
                 rows={2}
+              />
+              <Input
+                placeholder="Ponto de referência (opcional)"
+                value={referencePoint}
+                onChange={(e) => setReferencePoint(e.target.value)}
+                className="bg-background border-border"
               />
             </div>
           )}
@@ -305,16 +382,62 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
             />
           </div>
 
+          {/* Coupon Code */}
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Ticket className="w-4 h-4 text-primary" />
+              Cupom de Desconto
+            </Label>
+            {appliedCoupon ? (
+              <div className="flex items-center justify-between p-3 rounded-xl border-2 border-primary bg-primary/10">
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-primary" />
+                  <span className="font-mono font-bold text-foreground text-sm">{appliedCoupon.code}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {appliedCoupon.type === 'percentage' && `${appliedCoupon.value}% off`}
+                    {appliedCoupon.type === 'fixed' && `- ${formatPrice(appliedCoupon.value)}`}
+                    {appliedCoupon.type === 'free_delivery' && 'Frete Grátis'}
+                  </span>
+                </div>
+                <button onClick={handleRemoveCoupon} className="text-muted-foreground hover:text-destructive">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Digite o cupom"
+                  value={couponCode}
+                  onChange={e => { setCouponCode(e.target.value.toUpperCase()); setCouponError(''); }}
+                  className="bg-background border-border uppercase font-mono"
+                  onKeyDown={e => e.key === 'Enter' && handleApplyCoupon()}
+                />
+                <Button variant="outline" onClick={handleApplyCoupon} className="shrink-0">
+                  Aplicar
+                </Button>
+              </div>
+            )}
+            {couponError && (
+              <p className="text-xs text-destructive">{couponError}</p>
+            )}
+          </div>
+
           {/* Order Summary */}
           <div className="bg-muted/50 rounded-xl p-4 space-y-2">
             <div className="flex justify-between text-sm text-muted-foreground">
               <span>Subtotal</span>
               <span>{formatPrice(total)}</span>
             </div>
-            {discountAmount > 0 && (
+            {rewardDiscount > 0 && (
               <div className="flex justify-between text-sm text-green-500 font-medium">
-                <span>Desconto ({Math.round(discountPercent * 100)}%)</span>
-                <span>- {formatPrice(discountAmount)}</span>
+                <span>Desconto recompensa ({Math.round(discountPercent * 100)}%)</span>
+                <span>- {formatPrice(rewardDiscount)}</span>
+              </div>
+            )}
+            {couponDiscount > 0 && (
+              <div className="flex justify-between text-sm text-green-500 font-medium">
+                <span>Cupom {appliedCoupon?.code}</span>
+                <span>- {formatPrice(couponDiscount)}</span>
               </div>
             )}
             {deliveryType === 'delivery' && (

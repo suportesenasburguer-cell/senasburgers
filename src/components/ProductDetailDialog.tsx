@@ -245,12 +245,18 @@ const ProductDetailDialog = ({ item, open, onOpenChange }: ProductDetailDialogPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl p-0 bg-card border-border overflow-hidden max-h-[90vh] flex flex-col md:flex-row">
-        <div className="relative md:w-1/2 h-64 md:h-auto flex-shrink-0">
+      <DialogContent className="max-w-4xl p-0 bg-card border-border overflow-hidden max-h-[90vh] flex flex-col md:flex-row md:items-stretch">
+        <div className="relative md:w-1/2 flex-shrink-0 flex items-center justify-center bg-black/90">
           {item.image_url ? (
-            <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+            <img
+              src={item.image_url}
+              alt={item.name}
+              loading="lazy"
+              decoding="async"
+              className="w-full h-auto object-contain max-h-[35vh] md:max-h-[90vh]"
+            />
           ) : (
-            <div className="w-full h-full bg-muted flex items-center justify-center min-h-[16rem]">
+            <div className="w-full bg-muted flex items-center justify-center min-h-[16rem]">
               <ImageIcon className="w-16 h-16 text-muted-foreground/30" />
             </div>
           )}

@@ -34,7 +34,7 @@ const Carrinho = () => {
     const discount = data.discount || 0;
     const finalTotal = getTotal() - discount + data.deliveryFee;
 
-    let message = `Pedido nº ${orderNumber}\n\nItens:\n`;
+    let message = `Pedido nº ${orderNumber}\n\n👤 *${data.customerName}*\n📞 ${data.customerPhone}\n\nItens:\n`;
 
     items.forEach((cartItem) => {
       let itemLine = `\n➡ ${cartItem.quantity}x ${cartItem.item.name}`;
@@ -57,6 +57,9 @@ const Carrinho = () => {
     if (data.deliveryType === 'delivery') {
       message += `\n\n🛵 Delivery (taxa de: ${formatPrice(data.deliveryFee)})`;
       message += `\n\n🏠 ${data.address}`;
+      if (data.referencePoint) {
+        message += `\n📍 Ref: ${data.referencePoint}`;
+      }
       message += `\n\n(Estimativa: 50 minutos)`;
     } else {
       message += `\n\n🏪 Retirada na loja`;
@@ -87,21 +90,20 @@ const Carrinho = () => {
     };
     addOrder(order);
 
-    // Save to DB if user is logged in
-    if (user) {
-      await saveCustomerOrder({
-        userId: user.id,
-        items,
-        total: getTotal(),
-        deliveryFee: data.deliveryFee,
-        paymentMethod: data.paymentMethod,
-        deliveryType: data.deliveryType,
-        address: data.address,
-        observation: data.observation,
-        customerName: profile?.full_name || undefined,
-        customerPhone: profile?.phone || undefined,
-      });
-    }
+    // Save to DB (logged in or guest)
+    await saveCustomerOrder({
+      userId: user?.id || null,
+      items,
+      total: getTotal(),
+      deliveryFee: data.deliveryFee,
+      paymentMethod: data.paymentMethod,
+      deliveryType: data.deliveryType,
+      address: data.address,
+      observation: data.observation,
+      customerName: data.customerName,
+      customerPhone: data.customerPhone,
+      referencePoint: data.referencePoint,
+    });
 
     // Open WhatsApp
     const phoneNumber = '5584988760462';

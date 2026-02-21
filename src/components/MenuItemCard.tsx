@@ -105,6 +105,8 @@ const MenuItemCard = ({ item, index }: MenuItemCardProps) => {
             <img
               src={item.image_url}
               alt={item.name}
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover rounded-xl transition-transform duration-300 group-hover:scale-105"
             />
           ) : (

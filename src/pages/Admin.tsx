@@ -8,8 +8,10 @@ import { toast } from '@/hooks/use-toast';
 import {
   Plus, Trash2, Edit2, Save, X, Image as ImageIcon,
   Package, Upload, Star, StarOff, Gift, Tag, Layers, PauseCircle, PlayCircle,
-  GripVertical
+  GripVertical, Ticket
 } from 'lucide-react';
+import { useCoupons, Coupon } from '@/hooks/use-coupons';
+import CouponsTab from '@/components/CouponsTab';
 import {
   DndContext,
   closestCenter,
@@ -129,7 +131,7 @@ const Admin = () => {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [addons, setAddons] = useState<Addon[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
-  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'upsells' | 'promotions' | 'addons' | 'rewards'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'upsells' | 'promotions' | 'addons' | 'rewards' | 'coupons'>('products');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [loading, setLoading] = useState(true);
 
@@ -704,6 +706,7 @@ const Admin = () => {
               {activeTab === 'addons' && 'Adicionais'}
               {activeTab === 'promotions' && 'Promoções'}
               {activeTab === 'rewards' && 'Recompensas'}
+              {activeTab === 'coupons' && 'Cupons'}
             </h2>
           </header>
 
@@ -1720,6 +1723,9 @@ const Admin = () => {
             )}
           </div>
         )}
+
+        {/* COUPONS TAB */}
+        {activeTab === 'coupons' && <CouponsTab />}
           </div>
         </main>
       </div>
