@@ -20,7 +20,7 @@ interface OrderItem {
 
 interface Order {
   id: string;
-  user_id: string;
+  user_id: string | null;
   total: number;
   delivery_fee: number;
   payment_method: string;
@@ -133,9 +133,13 @@ const AdminPedidos = () => {
     }
 
     // Award loyalty points when order is completed
-    if (nextStatus === 'completed') {
-      await awardLoyaltyPoints(order.user_id, order.id, order.item_count);
-      toast({ title: 'Pedido finalizado!', description: `+${order.item_count} ponto(s) de fidelidade creditados.` });
+      if (nextStatus === 'completed') {
+      if (order.user_id) {
+        await awardLoyaltyPoints(order.user_id, order.id, order.item_count);
+        toast({ title: 'Pedido finalizado!', description: `+${order.item_count} ponto(s) de fidelidade creditados.` });
+      } else {
+        toast({ title: 'Pedido finalizado!', description: 'Pedido de visitante concluído.' });
+      }
     } else {
       toast({ title: `Status atualizado para: ${STATUS_CONFIG[nextStatus]?.label}` });
     }
