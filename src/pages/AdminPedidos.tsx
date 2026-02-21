@@ -189,58 +189,107 @@ const AdminPedidos = () => {
     };
 
     const subtotal = (order.items || []).reduce((s, i) => s + i.unit_price * i.quantity, 0);
-
-    const itemsHtml = (order.items || []).map(item =>
-      `<tr>
-        <td>${item.quantity}x ${item.product_name}</td>
-        <td style="text-align:right;white-space:nowrap">${formatPrice(item.unit_price * item.quantity)}</td>
-      </tr>
-      ${item.extras ? `<tr><td colspan="2" style="padding:0 0 2px 12px;font-size:11px;color:#555">+ ${item.extras}</td></tr>` : ''}`
-    ).join('');
+    const discount = subtotal + order.delivery_fee - order.total;
+    const hasDiscount = discount > 0.01;
+    const orderNumber = order.id.slice(0, 8).toUpperCase();
 
     const fullDate = new Date(order.created_at).toLocaleString('pt-BR', {
       day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
     });
+
+    const itemsHtml = (order.items || []).map(item =>
+      `<div class="item-row">
+        <div class="item-line">
+          <span><b>${item.quantity}x</b> ${item.product_name}</span>
+          <span class="item-price">${formatPrice(item.unit_price * item.quantity)}</span>
+        </div>
+        ${item.extras ? `<p class="item-extras">+ ${item.extras}</p>` : ''}
+        ${item.quantity > 1 ? `<p class="item-extras">(${formatPrice(item.unit_price)} un.)</p>` : ''}
+      </div>`
+    ).join('');
 
     win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Comanda</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Courier New',Courier,monospace;font-size:12px;width:100%;max-width:80mm;margin:0 auto;padding:4px;color:#000;line-height:1.4}
+body{font-family:'Courier New',Courier,monospace;font-size:12px;width:100%;max-width:80mm;margin:0 auto;padding:8px;color:#000;line-height:1.5}
 .center{text-align:center}
 .bold{font-weight:bold}
-.divider{border:none;border-top:1px dashed #000;margin:4px 0}
-table{width:100%;border-collapse:collapse}
-td{padding:1px 0;vertical-align:top}
-.total-row td{font-size:14px;font-weight:bold;padding-top:4px}
-.info-row{font-size:11px;padding:1px 0}
-@media print{body{margin:0;padding:2px}@page{margin:0;size:80mm auto}}
+.divider{border:none;border-top:1px dashed #999;margin:6px 0}
+.thick-divider{border:none;border-top:2px solid #000;margin:5px 0}
+.header-border{text-align:center;font-weight:bold;font-size:13px;letter-spacing:2px}
+.store-name{text-align:center;font-weight:800;font-size:15px;letter-spacing:1px}
+.subtitle{text-align:center;font-size:10px;color:#666;margin-top:3px}
+.order-number{text-align:center;font-weight:bold;font-size:13px}
+.order-date{text-align:center;font-size:11px;color:#555}
+.order-status{text-align:center;font-size:10px;margin-top:2px}
+.section-title{font-weight:bold;font-size:11px;margin-bottom:3px}
+.info-row{display:flex;gap:4px;font-size:11px;padding:1px 0}
+.info-label{font-weight:600;color:#444;min-width:65px}
+.info-value{color:#111}
+.item-row{margin-bottom:5px}
+.item-line{display:flex;justify-content:space-between;gap:6px}
+.item-price{white-space:nowrap;font-weight:600}
+.item-extras{font-size:10px;color:#555;padding-left:14px;margin-top:1px}
+.totals-row{display:flex;justify-content:space-between;font-size:12px;padding:1px 0}
+.total-final{display:flex;justify-content:space-between;font-weight:800;font-size:14px}
+.discount{color:#2d7a2d}
+.obs-box{font-size:11px;color:#555;background:#f5f5f5;padding:4px 6px;border-radius:3px;margin-top:2px}
+.footer{text-align:center;font-size:10px;color:#999;margin-top:6px}
+@media print{body{margin:0;padding:4px}@page{margin:0;size:80mm auto}}
 </style></head><body>
-<p class="center bold" style="font-size:14px">COMANDA</p>
-<p class="center" style="font-size:11px">#${order.id.slice(0, 8).toUpperCase()}</p>
-<p class="center" style="font-size:10px">${fullDate}</p>
-<p class="center" style="font-size:10px">Status: ${statusLabels[order.status] || order.status}</p>
+
+<p class="header-border">═══════════════════</p>
+<p class="store-name">SENA'S BURGERS</p>
+<p class="header-border">═══════════════════</p>
+<p class="subtitle">COMANDA DE PEDIDO</p>
+
 <hr class="divider">
-<table>${itemsHtml}</table>
+
+<p class="order-number">Pedido #${orderNumber}</p>
+<p class="order-date">${fullDate}</p>
+<p class="order-status">Status: <b>${statusLabels[order.status] || order.status}</b></p>
+
 <hr class="divider">
-<table>
-<tr><td>Subtotal</td><td style="text-align:right">${formatPrice(subtotal)}</td></tr>
-${order.delivery_fee > 0 ? `<tr><td>Taxa entrega</td><td style="text-align:right">${formatPrice(order.delivery_fee)}</td></tr>` : ''}
-${order.total !== subtotal + order.delivery_fee ? `<tr><td>Desconto</td><td style="text-align:right">-${formatPrice(subtotal + order.delivery_fee - order.total)}</td></tr>` : ''}
-</table>
+
+${(order.customer_name || order.customer_phone) ? `
+<p class="section-title">DADOS DO CLIENTE</p>
+${order.customer_name ? `<div class="info-row"><span class="info-label">Nome:</span><span class="info-value">${order.customer_name}</span></div>` : ''}
+${order.customer_phone ? `<div class="info-row"><span class="info-label">Telefone:</span><span class="info-value">${order.customer_phone}</span></div>` : ''}
 <hr class="divider">
-<table><tr class="total-row"><td>TOTAL</td><td style="text-align:right">${formatPrice(order.total)}</td></tr></table>
+` : ''}
+
+<p class="section-title">ENTREGA / RETIRADA</p>
+<div class="info-row"><span class="info-label">Tipo:</span><span class="info-value">${order.delivery_type === 'delivery' ? '🛵 Delivery' : '🏪 Retirada na Loja'}</span></div>
+<div class="info-row"><span class="info-label">Pagamento:</span><span class="info-value">${paymentLabels[order.payment_method] || order.payment_method}</span></div>
+${order.address ? `<div class="info-row"><span class="info-label">Endereço:</span><span class="info-value">${order.address}</span></div>` : ''}
+${order.reference_point ? `<div class="info-row"><span class="info-label">Referência:</span><span class="info-value">${order.reference_point}</span></div>` : ''}
+
 <hr class="divider">
-${order.customer_name ? `<p class="info-row"><b>Cliente:</b> ${order.customer_name}</p>` : ''}
-${order.customer_phone ? `<p class="info-row"><b>Telefone:</b> ${order.customer_phone}</p>` : ''}
-<p class="info-row"><b>Pagamento:</b> ${paymentLabels[order.payment_method] || order.payment_method}</p>
-<p class="info-row"><b>Entrega:</b> ${order.delivery_type === 'delivery' ? 'Delivery' : 'Retirada na loja'}</p>
-${order.address ? `<p class="info-row"><b>Endereço:</b> ${order.address}</p>` : ''}
-${order.reference_point ? `<p class="info-row"><b>Ref:</b> ${order.reference_point}</p>` : ''}
-${order.observation ? `<p class="info-row"><b>Obs:</b> ${order.observation}</p>` : ''}
-<p class="info-row"><b>Itens:</b> ${order.item_count}</p>
+
+<p class="section-title">ITENS DO PEDIDO</p>
+${itemsHtml}
+
 <hr class="divider">
-<p class="center" style="font-size:10px;margin-top:2px">Sena's Burgers</p>
+
+<div class="totals-row"><span>Subtotal (${order.item_count} ${order.item_count === 1 ? 'item' : 'itens'})</span><span>${formatPrice(subtotal)}</span></div>
+${order.delivery_fee > 0 ? `<div class="totals-row"><span>Taxa de Entrega</span><span>${formatPrice(order.delivery_fee)}</span></div>` : ''}
+${hasDiscount ? `<div class="totals-row discount"><span>Desconto</span><span>-${formatPrice(discount)}</span></div>` : ''}
+
+<hr class="thick-divider">
+<div class="total-final"><span>TOTAL</span><span>${formatPrice(order.total)}</span></div>
+<hr class="thick-divider">
+
+${order.observation ? `
+<p class="section-title">OBSERVAÇÕES</p>
+<p class="obs-box">${order.observation}</p>
+<hr class="divider">
+` : ''}
+
+<p class="footer">Obrigado pela preferência!</p>
+<p class="footer">Sena's Burgers - Sabor incomparável</p>
+<p class="header-border" style="margin-top:4px">═══════════════════</p>
+
 <script>window.onload=()=>{window.print();window.close()}<\/script>
 </body></html>`);
     win.document.close();
