@@ -25,7 +25,7 @@ export interface CheckoutData {
   paymentMethod: string;
   deliveryType: 'delivery' | 'pickup';
   address: string;
-  delivery: number;
+  deliveryFee: number;
   observation: string;
   appliedRedemptionId?: string;
   discount?: number;
@@ -46,28 +46,28 @@ interface PendingRedemption {
 }
 
 const NEIGHBORHOODS = [
-  { name: 'Nova Esperança'},
-  { name: 'Vale do Sol'},
-  { name: 'Santa Júlia'},
-  { name: 'Engenho'},
-  { name: 'Bosque Brasil'},
-  { name: 'Bosque das Colinas'},
-  { name: 'Rosas dos Ventos'},
-  { name: 'Passagem de Areia'},
-  { name: 'Santa Tereza'},
-  { name: 'Bela Parnamirim'},
-  { name: 'Santos Reis'},
-  { name: 'Monte Castelo'},
-  { name: 'Vida Nova'},
-  { name: 'Cidade Campestre'},
-  { name: 'Conjunto Flamboyants'},
-  { name: 'Cajupiranga'},
-  { name: 'Centro'},
-  { name: 'Cohabinal'},
-  { name: 'Boa Esperança'},
-  { name: 'Jardim Planalto'},
-  { name: 'Liberdade',
-  { name: 'Parque de Exposições'},
+  { name: 'Nova Esperança', fee: 5 },
+  { name: 'Vale do Sol', fee: 5 },
+  { name: 'Santa Júlia', fee: 5 },
+  { name: 'Engenho', fee: 5 },
+  { name: 'Bosque Brasil', fee: 8 },
+  { name: 'Bosque das Colinas', fee: 7 },
+  { name: 'Rosas dos Ventos', fee: 6 },
+  { name: 'Passagem de Areia', fee: 7 },
+  { name: 'Santa Tereza', fee: 6 },
+  { name: 'Bela Parnamirim', fee: 8 },
+  { name: 'Santos Reis', fee: 6 },
+  { name: 'Monte Castelo', fee: 7 },
+  { name: 'Vida Nova', fee: 8 },
+  { name: 'Cidade Campestre', fee: 10 },
+  { name: 'Conjunto Flamboyants', fee: 10 },
+  { name: 'Cajupiranga', fee: 7 },
+  { name: 'Centro', fee: 7 },
+  { name: 'Cohabinal', fee: 6 },
+  { name: 'Boa Esperança', fee: 7 },
+  { name: 'Jardim Planalto', fee: 8 },
+  { name: 'Liberdade', fee: 9 },
+  { name: 'Parque de Exposições', fee: 10 },
 ];
 
 const getDiscountFromType = (rewardType: string): number => {
@@ -150,13 +150,13 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
   const selectedRedemption = pendingRedemptions.find(r => r.id === selectedRedemptionId);
 
   const selectedNeighborhood = NEIGHBORHOODS.find(n => n.name === neighborhood);
-  const neighborhood = selectedNeighborhood?. || 0;
+  const neighborhoodFee = selectedNeighborhood?.fee || 0;
 
   const isFreeDelivery = selectedRedemption?.reward_type === 'free_delivery' || appliedCoupon?.type === 'free_delivery';
   const discountPercent = selectedRedemption ? getDiscountFromType(selectedRedemption.reward_type) : 0;
 
-  const baseDelivery = deliveryType === 'delivery' ? neighborhood : 0;
-  const delivery = isFreeDelivery ? 0 : baseDelivery;
+  const baseDeliveryFee = deliveryType === 'delivery' ? neighborhoodFee : 0;
+  const deliveryFee = isFreeDelivery ? 0 : baseDeliveryFee;
   const rewardDiscount = discountPercent > 0 ? total * discountPercent : 0;
 
   let couponDiscount = 0;
@@ -169,7 +169,7 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
   }
 
   const discountAmount = rewardDiscount + couponDiscount;
-  const finalTotal = total - discountAmount + delivery;
+  const finalTotal = total - discountAmount + deliveryFee;
 
   const handleApplyCoupon = () => {
     setCouponError('');
@@ -223,7 +223,7 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
         paymentMethod,
         deliveryType: deliveryType as 'delivery' | 'pickup',
         address: fullAddress,
-        delivery,
+        deliveryFee,
         observation: observation.trim(),
         appliedRedemptionId: selectedRedemptionId || undefined,
         discount: discountAmount,
@@ -380,7 +380,7 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
                     {isFreeDelivery ? (
                       <span className="text-green-500 font-semibold">Grátis! 🎉</span>
                     ) : neighborhood ? (
-                      `Taxa: ${formatPrice(neighborhood)}`
+                      `Taxa: ${formatPrice(neighborhoodFee)}`
                     ) : (
                       'Selecione o bairro'
                     )}
@@ -421,7 +421,7 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
                 <SelectContent className="bg-popover border-border z-[200] max-h-60">
                   {NEIGHBORHOODS.map((n) => (
                     <SelectItem key={n.name} value={n.name}>
-                      {n.name} – {formatPrice(n.)}
+                      {n.name} – {formatPrice(n.fee)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -534,11 +534,11 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
                   <span>Taxa de entrega</span>
                   {isFreeDelivery ? (
                     <span className="text-green-500 font-medium line-through-none">
-                      <span className="line-through text-muted-foreground mr-1">{formatPrice(neighborhood)}</span>
+                      <span className="line-through text-muted-foreground mr-1">{formatPrice(neighborhoodFee)}</span>
                       Grátis
                     </span>
                   ) : (
-                    <span>{formatPrice(neighborhood)}</span>
+                    <span>{formatPrice(neighborhoodFee)}</span>
                   )}
                 </div>
                 <div className="flex justify-between text-sm text-muted-foreground">
