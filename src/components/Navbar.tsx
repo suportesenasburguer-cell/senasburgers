@@ -10,7 +10,7 @@ const useIsOpen = () => {
     const now = new Date();
     const day = now.getDay();
     const time = now.getHours() * 60 + now.getMinutes();
-    const openDays = [1, 4, 5, 6];
+    const openDays = [0, 1, 4, 5, 6];
     const openTime = 18 * 60 + 15;
     const closeTime = 22 * 60 + 45;
     return openDays.includes(day) && time >= openTime && time <= closeTime;
