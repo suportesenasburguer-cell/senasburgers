@@ -1,29 +1,58 @@
 import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import heroBurger from '@/assets/hero-burger.jpg';
 import heroAcai from '@/assets/hero-acai.jpg';
 import heroFries from '@/assets/hero-fries.jpg';
 import { cn } from '@/lib/utils';
 
-const slides = [
+const fallbackSlides = [
   { image: heroBurger, alt: 'Hambúrguer artesanal' },
   { image: heroAcai, alt: 'Açaí cremoso' },
   { image: heroFries, alt: 'Batata frita crocante' },
 ];
 
+interface Slide {
+  image: string;
+  alt: string;
+}
+
 const HeroSlider = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [slides, setSlides] = useState<Slide[]>(fallbackSlides);
 
   useEffect(() => {
+    const fetchSlides = async () => {
+      try {
+        const { data } = await (supabase as any)
+          .from('hero_slides')
+          .select('image_url, alt')
+          .eq('is_active', true)
+          .order('sort_order');
+        
+        if (data && data.length > 0) {
+          setSlides(data.map((s: any) => ({ image: s.image_url, alt: s.alt })));
+        }
+      } catch (e) {
+        // fallback to static slides
+      }
+    };
+    fetchSlides();
+  }, []);
+
+  useEffect(() => {
+    if (slides.length === 0) return;
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
     }, 5000);
     return () => clearInterval(timer);
-  }, []);
+  }, [slides.length]);
 
   const goToSlide = (index: number) => setCurrentSlide(index);
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
   const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % slides.length);
+
+  if (slides.length === 0) return null;
 
   return (
     <section className="relative h-[40vh] md:h-[50vh] overflow-hidden">

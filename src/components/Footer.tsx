@@ -5,7 +5,7 @@ const isOpen = () => {
   const now = new Date();
   const day = now.getDay(); // 0=Sun,1=Mon,...6=Sat
   const time = now.getHours() * 60 + now.getMinutes();
-  const openDays = [1, 4, 5, 6]; // Mon, Thu, Fri, Sat
+  const openDays = [0, 1, 4, 5, 6]; // Sun, Mon, Thu, Fri, Sat
   const openTime = 18 * 60 + 15; // 18:15
   const closeTime = 22 * 60 + 45; // 22:45
   return openDays.includes(day) && time >= openTime && time <= closeTime;
@@ -44,7 +44,7 @@ const Footer = () => {
               </a>
               <div className="flex items-center gap-3 text-muted-foreground">
                 <Clock className="w-5 h-5 text-primary" />
-                <span>Seg, Qui, Sex e Sáb: 18:15 às 22:45</span>
+                <span>Dom, Seg, Qui, Sex e Sáb: 18:15 às 22:45</span>
               </div>
               <div className="flex items-center gap-2 mt-2">
                 <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${open ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useCoupons, Coupon } from '@/hooks/use-coupons';
 import CouponsTab from '@/components/CouponsTab';
+import BannerTab from '@/components/BannerTab';
 import {
   DndContext,
   closestCenter,
@@ -131,7 +132,7 @@ const Admin = () => {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [addons, setAddons] = useState<Addon[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
-  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'upsells' | 'promotions' | 'addons' | 'rewards' | 'coupons'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'upsells' | 'promotions' | 'addons' | 'rewards' | 'coupons' | 'banners'>('products');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [loading, setLoading] = useState(true);
 
@@ -707,6 +708,7 @@ const Admin = () => {
               {activeTab === 'promotions' && 'Promoções'}
               {activeTab === 'rewards' && 'Recompensas'}
               {activeTab === 'coupons' && 'Cupons'}
+              {activeTab === 'banners' && 'Vitrine / Slides'}
             </h2>
           </header>
 
@@ -1726,6 +1728,9 @@ const Admin = () => {
 
         {/* COUPONS TAB */}
         {activeTab === 'coupons' && <CouponsTab />}
+
+        {/* BANNERS TAB */}
+        {activeTab === 'banners' && <BannerTab />}
           </div>
         </main>
       </div>

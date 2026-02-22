@@ -194,7 +194,8 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
     setCouponError('');
   };
   const fullAddress = deliveryType === 'delivery' ? `${street}, Nº ${houseNumber}${complement ? ', ' + complement : ''} - ${neighborhood}` : '';
-  const isValid = paymentMethod && deliveryType && customerName.trim() && customerPhone.trim() && (deliveryType === 'pickup' || (street.trim() && houseNumber.trim() && neighborhood));
+  const phoneDigits = customerPhone.replace(/\D/g, '');
+  const isValid = paymentMethod && deliveryType && customerName.trim() && phoneDigits.length === 11 && (deliveryType === 'pickup' || (street.trim() && houseNumber.trim() && neighborhood));
   const MINIMUM_ORDER = 25;
   const isBelowMinimum = total < MINIMUM_ORDER;
 
@@ -271,11 +272,20 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
                 className="bg-background border-border"
               />
               <Input
-                placeholder="Telefone (WhatsApp) *"
+                placeholder="(84) 9 9999-9999"
                 value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
+                  let formatted = digits;
+                  if (digits.length > 0) formatted = `(${digits.slice(0, 2)}`;
+                  if (digits.length >= 3) formatted = `(${digits.slice(0, 2)}) ${digits.slice(2, 3)}`;
+                  if (digits.length >= 4) formatted = `(${digits.slice(0, 2)}) ${digits.slice(2, 3)} ${digits.slice(3, 7)}`;
+                  if (digits.length >= 8) formatted = `(${digits.slice(0, 2)}) ${digits.slice(2, 3)} ${digits.slice(3, 7)}-${digits.slice(7, 11)}`;
+                  setCustomerPhone(formatted);
+                }}
                 className="bg-background border-border"
                 type="tel"
+                maxLength={18}
               />
             </div>
           </div>
