@@ -1,9 +1,21 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Tag, ClipboardList, ShoppingCart, Menu, X, User } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { useCustomerAuth } from '@/hooks/use-customer-auth';
 import { cn } from '@/lib/utils';
+
+const useIsOpen = () => {
+  return useMemo(() => {
+    const now = new Date();
+    const day = now.getDay();
+    const time = now.getHours() * 60 + now.getMinutes();
+    const openDays = [1, 4, 5, 6];
+    const openTime = 18 * 60 + 15;
+    const closeTime = 22 * 60 + 45;
+    return openDays.includes(day) && time >= openTime && time <= closeTime;
+  }, []);
+};
 
 const navItems = [
   { path: '/', label: 'Início', icon: Home },
@@ -12,11 +24,12 @@ const navItems = [
 ];
 
 const Navbar = () => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
   const { getItemCount } = useCart();
   const { user, profile } = useCustomerAuth();
   const itemCount = getItemCount();
+  const storeOpen = useIsOpen();
 
   return (
     <header className="sticky top-0 z-50 glass border-b border-border">
@@ -28,6 +41,10 @@ const Navbar = () => {
           }}>
             <span className="text-gradient-burger">Sena's</span>
             <span className="text-foreground"> Burgers</span>
+          </span>
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${storeOpen ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${storeOpen ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`} />
+            {storeOpen ? 'Aberto' : 'Fechado'}
           </span>
         </Link>
 
@@ -98,23 +115,23 @@ const Navbar = () => {
             )}
           </Link>
           <button
-            onClick={() => setIsOpen(!isOpen)}
+            onClick={() => setMenuOpen(!menuOpen)}
             className="text-foreground p-2"
           >
-            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
       </div>
 
       {/* Mobile Navigation */}
-      {isOpen && (
+      {menuOpen && (
         <nav className="md:hidden glass border-t border-border animate-fade-in">
           <div className="container px-4 py-4 space-y-2">
             {navItems.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
-                onClick={() => setIsOpen(false)}
+                onClick={() => setMenuOpen(false)}
                 className={cn(
                   'flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-300',
                   location.pathname === item.path
