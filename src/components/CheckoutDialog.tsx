@@ -411,7 +411,7 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
                 <SelectTrigger className="bg-background border-border">
                   <SelectValue placeholder="Selecione o bairro *" />
                 </SelectTrigger>
-                <SelectContent className="bg-popover border-border z-50 max-h-60">
+                <SelectContent className="bg-popover border-border z-[200] max-h-60">
                   {NEIGHBORHOODS.map((n) => (
                     <SelectItem key={n.name} value={n.name}>
                       {n.name} – {formatPrice(n.fee)}
