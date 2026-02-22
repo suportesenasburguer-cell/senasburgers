@@ -19,7 +19,8 @@ interface Slide {
 
 const HeroSlider = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [slides, setSlides] = useState<Slide[]>(fallbackSlides);
+  const [slides, setSlides] = useState<Slide[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchSlides = async () => {
@@ -32,10 +33,13 @@ const HeroSlider = () => {
         
         if (data && data.length > 0) {
           setSlides(data.map((s: any) => ({ image: s.image_url, alt: s.alt })));
+        } else {
+          setSlides(fallbackSlides);
         }
       } catch (e) {
-        // fallback to static slides
+        setSlides(fallbackSlides);
       }
+      setLoading(false);
     };
     fetchSlides();
   }, []);
