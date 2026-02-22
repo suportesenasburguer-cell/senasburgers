@@ -13,16 +13,18 @@ interface SaveOrderParams {
   customerName?: string;
   customerPhone?: string;
   referencePoint?: string;
+  discount?: number;
+  couponCode?: string;
 }
 
 export const saveCustomerOrder = async (params: SaveOrderParams) => {
-  const { userId, items, total, deliveryFee, paymentMethod, deliveryType, address, observation, customerName, customerPhone, referencePoint } = params;
+  const { userId, items, total, deliveryFee, paymentMethod, deliveryType, address, observation, customerName, customerPhone, referencePoint, discount, couponCode } = params;
   
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
 
   // Insert order
   const insertData: any = {
-    total: total + deliveryFee,
+    total: total - (discount || 0) + deliveryFee,
     delivery_fee: deliveryFee,
     payment_method: paymentMethod,
     delivery_type: deliveryType,
@@ -30,6 +32,8 @@ export const saveCustomerOrder = async (params: SaveOrderParams) => {
     observation: observation || null,
     status: 'sent',
     item_count: totalItems,
+    discount: discount || 0,
+    coupon_code: couponCode || null,
   };
 
   if (userId) {

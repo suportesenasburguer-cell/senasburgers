@@ -5,10 +5,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { awardLoyaltyPoints } from '@/lib/order-service';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
-import { ArrowLeft, Clock, ChefHat, Truck, CheckCircle2, XCircle, RefreshCw, Printer, Volume2, Eye } from 'lucide-react';
+import { ArrowLeft, Clock, ChefHat, Truck, CheckCircle2, XCircle, RefreshCw, Printer, Volume2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import AdminSoundSelector, { playSelectedSound } from '@/components/AdminSoundSelector';
-import OrderReceiptPreview from '@/components/OrderReceiptPreview';
 
 interface OrderItem {
   id: string;
@@ -20,7 +19,7 @@ interface OrderItem {
 
 interface Order {
   id: string;
-  user_id: string | null;
+  user_id: string;
   total: number;
   delivery_fee: number;
   payment_method: string;
@@ -33,6 +32,8 @@ interface Order {
   customer_name: string | null;
   customer_phone: string | null;
   reference_point: string | null;
+  discount: number | null;
+  coupon_code: string | null;
   items?: OrderItem[];
 }
 
@@ -54,8 +55,8 @@ const AdminPedidos = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('active');
   const [orderCount, setOrderCount] = useState(0);
+
   const [showSoundSettings, setShowSoundSettings] = useState(false);
-  const [previewOrder, setPreviewOrder] = useState<Order | null>(null);
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin)) {
@@ -133,13 +134,9 @@ const AdminPedidos = () => {
     }
 
     // Award loyalty points when order is completed
-      if (nextStatus === 'completed') {
-      if (order.user_id) {
-        await awardLoyaltyPoints(order.user_id, order.id, order.item_count);
-        toast({ title: 'Pedido finalizado!', description: `+${order.item_count} ponto(s) de fidelidade creditados.` });
-      } else {
-        toast({ title: 'Pedido finalizado!', description: 'Pedido de visitante concluído.' });
-      }
+    if (nextStatus === 'completed') {
+      await awardLoyaltyPoints(order.user_id, order.id, order.item_count);
+      toast({ title: 'Pedido finalizado!', description: `+${order.item_count} ponto(s) de fidelidade creditados.` });
     } else {
       toast({ title: `Status atualizado para: ${STATUS_CONFIG[nextStatus]?.label}` });
     }
@@ -189,107 +186,59 @@ const AdminPedidos = () => {
     };
 
     const subtotal = (order.items || []).reduce((s, i) => s + i.unit_price * i.quantity, 0);
-    const discount = subtotal + order.delivery_fee - order.total;
-    const hasDiscount = discount > 0.01;
-    const orderNumber = order.id.slice(0, 8).toUpperCase();
+
+    const itemsHtml = (order.items || []).map(item =>
+      `<tr>
+        <td>${item.quantity}x ${item.product_name}</td>
+        <td style="text-align:right;white-space:nowrap">${formatPrice(item.unit_price * item.quantity)}</td>
+      </tr>
+      ${item.extras ? `<tr><td colspan="2" style="padding:0 0 2px 12px;font-size:11px;color:#555">+ ${item.extras}</td></tr>` : ''}`
+    ).join('');
 
     const fullDate = new Date(order.created_at).toLocaleString('pt-BR', {
       day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour: '2-digit', minute: '2-digit',
     });
-
-    const itemsHtml = (order.items || []).map(item =>
-      `<div class="item-row">
-        <div class="item-line">
-          <span><b>${item.quantity}x</b> ${item.product_name}</span>
-          <span class="item-price">${formatPrice(item.unit_price * item.quantity)}</span>
-        </div>
-        ${item.extras ? `<p class="item-extras">+ ${item.extras}</p>` : ''}
-        ${item.quantity > 1 ? `<p class="item-extras">(${formatPrice(item.unit_price)} un.)</p>` : ''}
-      </div>`
-    ).join('');
 
     win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Comanda</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Courier New',Courier,monospace;font-size:12px;width:100%;max-width:80mm;margin:0 auto;padding:8px;color:#000;line-height:1.5}
+body{font-family:'Courier New',Courier,monospace;font-size:12px;width:100%;max-width:80mm;margin:0 auto;padding:4px;color:#000;line-height:1.4}
 .center{text-align:center}
 .bold{font-weight:bold}
-.divider{border:none;border-top:1px dashed #999;margin:6px 0}
-.thick-divider{border:none;border-top:2px solid #000;margin:5px 0}
-.header-border{text-align:center;font-weight:bold;font-size:13px;letter-spacing:2px}
-.store-name{text-align:center;font-weight:800;font-size:15px;letter-spacing:1px}
-.subtitle{text-align:center;font-size:10px;color:#666;margin-top:3px}
-.order-number{text-align:center;font-weight:bold;font-size:13px}
-.order-date{text-align:center;font-size:11px;color:#555}
-.order-status{text-align:center;font-size:10px;margin-top:2px}
-.section-title{font-weight:bold;font-size:11px;margin-bottom:3px}
-.info-row{display:flex;gap:4px;font-size:11px;padding:1px 0}
-.info-label{font-weight:600;color:#444;min-width:65px}
-.info-value{color:#111}
-.item-row{margin-bottom:5px}
-.item-line{display:flex;justify-content:space-between;gap:6px}
-.item-price{white-space:nowrap;font-weight:600}
-.item-extras{font-size:10px;color:#555;padding-left:14px;margin-top:1px}
-.totals-row{display:flex;justify-content:space-between;font-size:12px;padding:1px 0}
-.total-final{display:flex;justify-content:space-between;font-weight:800;font-size:14px}
-.discount{color:#2d7a2d}
-.obs-box{font-size:11px;color:#555;background:#f5f5f5;padding:4px 6px;border-radius:3px;margin-top:2px}
-.footer{text-align:center;font-size:10px;color:#999;margin-top:6px}
-@media print{body{margin:0;padding:4px}@page{margin:0;size:80mm auto}}
+.divider{border:none;border-top:1px dashed #000;margin:4px 0}
+table{width:100%;border-collapse:collapse}
+td{padding:1px 0;vertical-align:top}
+.total-row td{font-size:14px;font-weight:bold;padding-top:4px}
+.info-row{font-size:11px;padding:1px 0}
+@media print{body{margin:0;padding:2px}@page{margin:0;size:80mm auto}}
 </style></head><body>
-
-<p class="header-border">═══════════════════</p>
-<p class="store-name">SENA'S BURGERS</p>
-<p class="header-border">═══════════════════</p>
-<p class="subtitle">COMANDA DE PEDIDO</p>
-
+<p class="center bold" style="font-size:14px">COMANDA</p>
+<p class="center" style="font-size:11px">#${order.id.slice(0, 8).toUpperCase()}</p>
+<p class="center" style="font-size:10px">${fullDate}</p>
+<p class="center" style="font-size:10px">Status: ${statusLabels[order.status] || order.status}</p>
 <hr class="divider">
-
-<p class="order-number">Pedido #${orderNumber}</p>
-<p class="order-date">${fullDate}</p>
-<p class="order-status">Status: <b>${statusLabels[order.status] || order.status}</b></p>
-
+<table>${itemsHtml}</table>
 <hr class="divider">
-
-${(order.customer_name || order.customer_phone) ? `
-<p class="section-title">DADOS DO CLIENTE</p>
-${order.customer_name ? `<div class="info-row"><span class="info-label">Nome:</span><span class="info-value">${order.customer_name}</span></div>` : ''}
-${order.customer_phone ? `<div class="info-row"><span class="info-label">Telefone:</span><span class="info-value">${order.customer_phone}</span></div>` : ''}
+<table>
+<tr><td>Subtotal</td><td style="text-align:right">${formatPrice(subtotal)}</td></tr>
+${order.delivery_fee > 0 ? `<tr><td>Taxa entrega</td><td style="text-align:right">${formatPrice(order.delivery_fee)}</td></tr>` : ''}
+${(order.discount && order.discount > 0) ? `<tr><td>Desconto${order.coupon_code ? ` (${order.coupon_code})` : ''}</td><td style="text-align:right;color:#d00">-${formatPrice(order.discount)}</td></tr>` : ''}
+</table>
+</table>
 <hr class="divider">
-` : ''}
-
-<p class="section-title">ENTREGA / RETIRADA</p>
-<div class="info-row"><span class="info-label">Tipo:</span><span class="info-value">${order.delivery_type === 'delivery' ? '🛵 Delivery' : '🏪 Retirada na Loja'}</span></div>
-<div class="info-row"><span class="info-label">Pagamento:</span><span class="info-value">${paymentLabels[order.payment_method] || order.payment_method}</span></div>
-${order.address ? `<div class="info-row"><span class="info-label">Endereço:</span><span class="info-value">${order.address}</span></div>` : ''}
-${order.reference_point ? `<div class="info-row"><span class="info-label">Referência:</span><span class="info-value">${order.reference_point}</span></div>` : ''}
-
+<table><tr class="total-row"><td>TOTAL</td><td style="text-align:right">${formatPrice(order.total)}</td></tr></table>
 <hr class="divider">
-
-<p class="section-title">ITENS DO PEDIDO</p>
-${itemsHtml}
-
+${order.customer_name ? `<p class="info-row"><b>Cliente:</b> ${order.customer_name}</p>` : ''}
+${order.customer_phone ? `<p class="info-row"><b>Telefone:</b> ${order.customer_phone}</p>` : ''}
+<p class="info-row"><b>Pagamento:</b> ${paymentLabels[order.payment_method] || order.payment_method}</p>
+<p class="info-row"><b>Entrega:</b> ${order.delivery_type === 'delivery' ? 'Delivery' : 'Retirada na loja'}</p>
+${order.address ? `<p class="info-row"><b>Endereço:</b> ${order.address}</p>` : ''}
+${order.reference_point ? `<p class="info-row"><b>Ref:</b> ${order.reference_point}</p>` : ''}
+${order.observation ? `<p class="info-row"><b>Obs:</b> ${order.observation}</p>` : ''}
+<p class="info-row"><b>Itens:</b> ${order.item_count}</p>
 <hr class="divider">
-
-<div class="totals-row"><span>Subtotal (${order.item_count} ${order.item_count === 1 ? 'item' : 'itens'})</span><span>${formatPrice(subtotal)}</span></div>
-${order.delivery_fee > 0 ? `<div class="totals-row"><span>Taxa de Entrega</span><span>${formatPrice(order.delivery_fee)}</span></div>` : ''}
-${hasDiscount ? `<div class="totals-row discount"><span>Desconto</span><span>-${formatPrice(discount)}</span></div>` : ''}
-
-<hr class="thick-divider">
-<div class="total-final"><span>TOTAL</span><span>${formatPrice(order.total)}</span></div>
-<hr class="thick-divider">
-
-${order.observation ? `
-<p class="section-title">OBSERVAÇÕES</p>
-<p class="obs-box">${order.observation}</p>
-<hr class="divider">
-` : ''}
-
-<p class="footer">Obrigado pela preferência!</p>
-<p class="footer">Sena's Burgers - Sabor incomparável</p>
-<p class="header-border" style="margin-top:4px">═══════════════════</p>
-
+<p class="center" style="font-size:10px;margin-top:2px">Sena's Burgers</p>
 <script>window.onload=()=>{window.print();window.close()}<\/script>
 </body></html>`);
     win.document.close();
@@ -410,6 +359,12 @@ ${order.observation ? `
                       <span className="text-muted-foreground">{formatPrice(order.delivery_fee)}</span>
                     </div>
                   )}
+                  {order.discount && order.discount > 0 ? (
+                    <div className="flex justify-between text-sm border-t border-border pt-1 mt-1">
+                      <span className="text-green-500">Desconto{order.coupon_code ? ` (${order.coupon_code})` : ''}</span>
+                      <span className="text-green-500">-{formatPrice(order.discount)}</span>
+                    </div>
+                  ) : null}
                 </div>
 
                 {/* Customer Info */}
@@ -458,13 +413,6 @@ ${order.observation ? `
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setPreviewOrder(order)}
-                  >
-                    <Eye className="w-4 h-4 mr-1" /> Preview
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
                     onClick={() => printOrder(order)}
                   >
                     <Printer className="w-4 h-4 mr-1" /> Imprimir
@@ -482,13 +430,6 @@ ${order.observation ? `
           </div>
         )}
       </div>
-
-      <OrderReceiptPreview
-        order={previewOrder}
-        open={!!previewOrder}
-        onOpenChange={(open) => !open && setPreviewOrder(null)}
-        onPrint={printOrder}
-      />
     </div>
   );
 };

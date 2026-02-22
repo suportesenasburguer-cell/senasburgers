@@ -31,6 +31,8 @@ export interface CheckoutData {
   customerName: string;
   customerPhone: string;
   referencePoint: string;
+  couponCode?: string;
+  couponId?: string;
 }
 
 interface PendingRedemption {
@@ -55,7 +57,7 @@ const getDiscountFromType = (rewardType: string): number => {
 
 const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: CheckoutDialogProps) => {
   const { user } = useCustomerAuth();
-  const { validateCoupon } = useCoupons();
+  const { validateCoupon, markCouponUsed } = useCoupons();
   const [paymentMethod, setPaymentMethod] = useState('');
   const [deliveryType, setDeliveryType] = useState<'delivery' | 'pickup' | ''>('');
   const [address, setAddress] = useState('');
@@ -142,13 +144,17 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
   const handleApplyCoupon = () => {
     setCouponError('');
     if (!couponCode.trim()) return;
-    const coupon = validateCoupon(couponCode);
+    if (!customerPhone.trim()) {
+      setCouponError('Preencha o telefone antes de aplicar o cupom');
+      return;
+    }
+    const { coupon, error } = validateCoupon(couponCode, customerPhone);
     if (coupon) {
       setAppliedCoupon(coupon);
       setCouponError('');
     } else {
       setAppliedCoupon(null);
-      setCouponError('Cupom inválido ou expirado');
+      setCouponError(error);
     }
   };
 
@@ -159,9 +165,11 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
   };
 
   const isValid = paymentMethod && deliveryType && customerName.trim() && customerPhone.trim() && (deliveryType === 'pickup' || address.trim());
+  const MINIMUM_ORDER = 25;
+  const isBelowMinimum = total < MINIMUM_ORDER;
 
   const handleConfirm = async () => {
-    if (!isValid) return;
+    if (!isValid || isBelowMinimum) return;
 
     // Mark the redemption as used
     if (selectedRedemptionId) {
@@ -169,6 +177,11 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
         .from('reward_redemptions')
         .update({ status: 'used' })
         .eq('id', selectedRedemptionId);
+    }
+
+    // Mark coupon as used by this phone
+    if (appliedCoupon) {
+      markCouponUsed(appliedCoupon.id, customerPhone.trim());
     }
 
     onConfirm({
@@ -182,6 +195,8 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
       customerName: customerName.trim(),
       customerPhone: customerPhone.trim(),
       referencePoint: referencePoint.trim(),
+      couponCode: appliedCoupon?.code,
+      couponId: appliedCoupon?.id,
     });
   };
 
@@ -465,10 +480,22 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
             </div>
           </div>
 
+          {/* Minimum Order Warning */}
+          {isBelowMinimum && (
+            <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-3 text-center">
+              <p className="text-sm font-semibold text-destructive">
+                Pedido mínimo de {formatPrice(MINIMUM_ORDER)}
+              </p>
+              <p className="text-xs text-destructive/80">
+                Adicione mais itens ao carrinho (faltam {formatPrice(MINIMUM_ORDER - total)})
+              </p>
+            </div>
+          )}
+
           {/* Confirm Button */}
           <Button
             onClick={handleConfirm}
-            disabled={!isValid}
+            disabled={!isValid || isBelowMinimum}
             className="w-full gradient-burger text-primary-foreground py-6 rounded-xl font-bold text-lg gap-2"
           >
             <MessageCircle className="w-5 h-5" />

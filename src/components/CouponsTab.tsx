@@ -184,6 +184,7 @@ const CouponsTab = () => {
                 <p className="text-sm text-muted-foreground">
                   {getTypeLabel(c.type)} — {formatValue(c)}
                   {c.expires_at && ` • Até ${new Date(c.expires_at).toLocaleDateString('pt-BR')}`}
+                  {c.used_by && c.used_by.length > 0 && ` • ${c.used_by.length} uso(s)`}
                 </p>
               </div>
             </div>

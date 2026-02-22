@@ -33,6 +33,7 @@ const Carrinho = () => {
 
     const discount = data.discount || 0;
     const finalTotal = getTotal() - discount + data.deliveryFee;
+    const couponInfo = data.couponCode ? `\n🏷️ Cupom: ${data.couponCode} (-${formatPrice(discount)})` : '';
 
     let message = `Pedido nº ${orderNumber}\n\n👤 *${data.customerName}*\n📞 ${data.customerPhone}\n\nItens:\n`;
 
@@ -53,6 +54,7 @@ const Carrinho = () => {
     });
 
     message += `\n\n${paymentLabel[data.paymentMethod] || data.paymentMethod}`;
+    message += couponInfo;
 
     if (data.deliveryType === 'delivery') {
       message += `\n\n🛵 Delivery (taxa de: ${formatPrice(data.deliveryFee)})`;
@@ -103,6 +105,8 @@ const Carrinho = () => {
       customerName: data.customerName,
       customerPhone: data.customerPhone,
       referencePoint: data.referencePoint,
+      discount: data.discount,
+      couponCode: data.couponCode,
     });
 
     // Open WhatsApp
