@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MessageCircle, CreditCard, Banknote, QrCode, MapPin, Store, Gift, X, User, Phone, Navigation, Ticket, Check } from 'lucide-react';
 import { CartItem } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -44,7 +45,30 @@ interface PendingRedemption {
   reward_name: string;
 }
 
-const DELIVERY_FEE = 5.0;
+const NEIGHBORHOODS = [
+  { name: 'Nova Esperança', fee: 5 },
+  { name: 'Vale do Sol', fee: 5 },
+  { name: 'Santa Júlia', fee: 5 },
+  { name: 'Engenho', fee: 5 },
+  { name: 'Bosque Brasil', fee: 8 },
+  { name: 'Bosque das Colinas', fee: 7 },
+  { name: 'Rosas dos Ventos', fee: 6 },
+  { name: 'Passagem de Areia', fee: 7 },
+  { name: 'Santa Tereza', fee: 6 },
+  { name: 'Bela Parnamirim', fee: 8 },
+  { name: 'Santos Reis', fee: 6 },
+  { name: 'Monte Castelo', fee: 7 },
+  { name: 'Vida Nova', fee: 8 },
+  { name: 'Cidade Campestre', fee: 10 },
+  { name: 'Conjunto Flamboyants', fee: 10 },
+  { name: 'Cajupiranga', fee: 7 },
+  { name: 'Centro', fee: 7 },
+  { name: 'Cohabinal', fee: 6 },
+  { name: 'Boa Esperança', fee: 7 },
+  { name: 'Jardim Planalto', fee: 8 },
+  { name: 'Liberdade', fee: 9 },
+  { name: 'Parque de Exposições', fee: 10 },
+];
 
 const getDiscountFromType = (rewardType: string): number => {
   switch (rewardType) {
@@ -60,7 +84,10 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
   const { validateCoupon, markCouponUsed } = useCoupons();
   const [paymentMethod, setPaymentMethod] = useState('');
   const [deliveryType, setDeliveryType] = useState<'delivery' | 'pickup' | ''>('');
-  const [address, setAddress] = useState('');
+  const [street, setStreet] = useState('');
+  const [houseNumber, setHouseNumber] = useState('');
+  const [complement, setComplement] = useState('');
+  const [neighborhood, setNeighborhood] = useState('');
   const [observation, setObservation] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -122,10 +149,13 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
 
   const selectedRedemption = pendingRedemptions.find(r => r.id === selectedRedemptionId);
 
+  const selectedNeighborhood = NEIGHBORHOODS.find(n => n.name === neighborhood);
+  const neighborhoodFee = selectedNeighborhood?.fee || 0;
+
   const isFreeDelivery = selectedRedemption?.reward_type === 'free_delivery' || appliedCoupon?.type === 'free_delivery';
   const discountPercent = selectedRedemption ? getDiscountFromType(selectedRedemption.reward_type) : 0;
 
-  const baseDeliveryFee = deliveryType === 'delivery' ? DELIVERY_FEE : 0;
+  const baseDeliveryFee = deliveryType === 'delivery' ? neighborhoodFee : 0;
   const deliveryFee = isFreeDelivery ? 0 : baseDeliveryFee;
   const rewardDiscount = discountPercent > 0 ? total * discountPercent : 0;
 
@@ -163,8 +193,8 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
     setCouponCode('');
     setCouponError('');
   };
-
-  const isValid = paymentMethod && deliveryType && customerName.trim() && customerPhone.trim() && (deliveryType === 'pickup' || address.trim());
+  const fullAddress = deliveryType === 'delivery' ? `${street}, Nº ${houseNumber}${complement ? ', ' + complement : ''} - ${neighborhood}` : '';
+  const isValid = paymentMethod && deliveryType && customerName.trim() && customerPhone.trim() && (deliveryType === 'pickup' || (street.trim() && houseNumber.trim() && neighborhood));
   const MINIMUM_ORDER = 25;
   const isBelowMinimum = total < MINIMUM_ORDER;
 
@@ -187,7 +217,7 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
     onConfirm({
       paymentMethod,
       deliveryType: deliveryType as 'delivery' | 'pickup',
-      address: address.trim(),
+      address: fullAddress,
       deliveryFee,
       observation: observation.trim(),
       appliedRedemptionId: selectedRedemptionId || undefined,
@@ -332,8 +362,10 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
                   <p className="text-xs text-muted-foreground">
                     {isFreeDelivery ? (
                       <span className="text-green-500 font-semibold">Grátis! 🎉</span>
+                    ) : neighborhood ? (
+                      `Taxa: ${formatPrice(neighborhoodFee)}`
                     ) : (
-                      `Taxa: ${formatPrice(DELIVERY_FEE)}`
+                      'Selecione o bairro'
                     )}
                   </p>
                 </div>
@@ -360,19 +392,43 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
 
           {/* Address (only for delivery) */}
           {deliveryType === 'delivery' && (
-            <div className="space-y-2 animate-fade-in">
-              <Label htmlFor="address" className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <div className="space-y-3 animate-fade-in">
+              <Label className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-primary" />
                 Endereço de Entrega
               </Label>
-              <Textarea
-                id="address"
-                placeholder="Rua, Nº, Complemento, Bairro, Cidade *"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="resize-none bg-background border-border"
-                rows={2}
+              <Select value={neighborhood} onValueChange={setNeighborhood}>
+                <SelectTrigger className="bg-background border-border">
+                  <SelectValue placeholder="Selecione o bairro *" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border-border z-50 max-h-60">
+                  {NEIGHBORHOODS.map((n) => (
+                    <SelectItem key={n.name} value={n.name}>
+                      {n.name} – {formatPrice(n.fee)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                placeholder="Rua *"
+                value={street}
+                onChange={(e) => setStreet(e.target.value)}
+                className="bg-background border-border"
               />
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  placeholder="Número *"
+                  value={houseNumber}
+                  onChange={(e) => setHouseNumber(e.target.value)}
+                  className="bg-background border-border"
+                />
+                <Input
+                  placeholder="Complemento"
+                  value={complement}
+                  onChange={(e) => setComplement(e.target.value)}
+                  className="bg-background border-border"
+                />
+              </div>
               <Input
                 placeholder="Ponto de referência (opcional)"
                 value={referencePoint}
@@ -461,11 +517,11 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
                   <span>Taxa de entrega</span>
                   {isFreeDelivery ? (
                     <span className="text-green-500 font-medium line-through-none">
-                      <span className="line-through text-muted-foreground mr-1">{formatPrice(DELIVERY_FEE)}</span>
+                      <span className="line-through text-muted-foreground mr-1">{formatPrice(neighborhoodFee)}</span>
                       Grátis
                     </span>
                   ) : (
-                    <span>{formatPrice(DELIVERY_FEE)}</span>
+                    <span>{formatPrice(neighborhoodFee)}</span>
                   )}
                 </div>
                 <div className="flex justify-between text-sm text-muted-foreground">
