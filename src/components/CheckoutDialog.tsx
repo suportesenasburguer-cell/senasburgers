@@ -199,36 +199,43 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
   const MINIMUM_ORDER = 25;
   const isBelowMinimum = total < MINIMUM_ORDER;
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleConfirm = async () => {
-    if (!isValid || isBelowMinimum) return;
+    if (!isValid || isBelowMinimum || isSubmitting) return;
+    setIsSubmitting(true);
 
-    // Mark the redemption as used
-    if (selectedRedemptionId) {
-      await (supabase as any)
-        .from('reward_redemptions')
-        .update({ status: 'used' })
-        .eq('id', selectedRedemptionId);
+    try {
+      // Mark the redemption as used
+      if (selectedRedemptionId) {
+        await (supabase as any)
+          .from('reward_redemptions')
+          .update({ status: 'used' })
+          .eq('id', selectedRedemptionId);
+      }
+
+      // Mark coupon as used by this phone
+      if (appliedCoupon) {
+        markCouponUsed(appliedCoupon.id, customerPhone.trim());
+      }
+
+      onConfirm({
+        paymentMethod,
+        deliveryType: deliveryType as 'delivery' | 'pickup',
+        address: fullAddress,
+        deliveryFee,
+        observation: observation.trim(),
+        appliedRedemptionId: selectedRedemptionId || undefined,
+        discount: discountAmount,
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        referencePoint: referencePoint.trim(),
+        couponCode: appliedCoupon?.code,
+        couponId: appliedCoupon?.id,
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    // Mark coupon as used by this phone
-    if (appliedCoupon) {
-      markCouponUsed(appliedCoupon.id, customerPhone.trim());
-    }
-
-    onConfirm({
-      paymentMethod,
-      deliveryType: deliveryType as 'delivery' | 'pickup',
-      address: fullAddress,
-      deliveryFee,
-      observation: observation.trim(),
-      appliedRedemptionId: selectedRedemptionId || undefined,
-      discount: discountAmount,
-      customerName: customerName.trim(),
-      customerPhone: customerPhone.trim(),
-      referencePoint: referencePoint.trim(),
-      couponCode: appliedCoupon?.code,
-      couponId: appliedCoupon?.id,
-    });
   };
 
   const paymentOptions = [
@@ -561,11 +568,11 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
           {/* Confirm Button */}
           <Button
             onClick={handleConfirm}
-            disabled={!isValid || isBelowMinimum}
+            disabled={!isValid || isBelowMinimum || isSubmitting}
             className="w-full gradient-burger text-primary-foreground py-6 rounded-xl font-bold text-lg gap-2"
           >
             <MessageCircle className="w-5 h-5" />
-            Enviar pelo WhatsApp
+            {isSubmitting ? 'Enviando...' : 'Enviar pelo WhatsApp'}
           </Button>
         </div>
       </DialogContent>
