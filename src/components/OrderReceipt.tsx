@@ -90,13 +90,21 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ order }) => {
                   {formatPrice(item.unit_price * item.quantity)}
                 </td>
               </tr>
-              {item.extras && (
-                <tr>
-                  <td colSpan={2} style={{ padding: '0 0 2px 12px', fontSize: 11, color: '#555' }}>
-                    + {item.extras}
-                  </td>
-                </tr>
-              )}
+              {item.extras && item.extras.split(', ').map((extra, eidx) => {
+                const priceMatch = extra.match(/@(\d+\.\d+)$/);
+                const extraLabel = extra.replace(/@\d+\.\d+$/, '').trim();
+                const extraPrice = priceMatch ? parseFloat(priceMatch[1]) : null;
+                return (
+                  <tr key={eidx}>
+                    <td style={{ padding: '0 0 1px 12px', fontSize: 11, color: '#555' }}>
+                      + {extraLabel}
+                    </td>
+                    <td style={{ textAlign: 'right', fontSize: 11, color: '#555', whiteSpace: 'nowrap' }}>
+                      {extraPrice ? formatPrice(extraPrice) : ''}
+                    </td>
+                  </tr>
+                );
+              })}
             </React.Fragment>
           ))}
         </tbody>
@@ -185,9 +193,16 @@ export const getReceiptHTML = (order: Order): string => {
     hour: '2-digit', minute: '2-digit',
   });
 
-  const itemsHtml = (order.items || []).map(item =>
-    `<tr><td>${item.quantity}x ${item.product_name}</td><td style="text-align:right;white-space:nowrap">${formatPrice(item.unit_price * item.quantity)}</td></tr>${item.extras ? `<tr><td colspan="2" style="padding:0 0 2px 12px;font-size:11px;color:#555">+ ${item.extras}</td></tr>` : ''}`
-  ).join('');
+  const itemsHtml = (order.items || []).map(item => {
+    const mainRow = `<tr><td>${item.quantity}x ${item.product_name}</td><td style="text-align:right;white-space:nowrap">${formatPrice(item.unit_price * item.quantity)}</td></tr>`;
+    const extrasRows = item.extras ? item.extras.split(', ').map(extra => {
+      const priceMatch = extra.match(/@(\d+\.\d+)$/);
+      const extraLabel = extra.replace(/@\d+\.\d+$/, '').trim();
+      const extraPrice = priceMatch ? parseFloat(priceMatch[1]) : null;
+      return `<tr><td style="padding:0 0 1px 12px;font-size:11px;color:#555">+ ${extraLabel}</td><td style="text-align:right;font-size:11px;color:#555;white-space:nowrap">${extraPrice ? formatPrice(extraPrice) : ''}</td></tr>`;
+    }).join('') : '';
+    return mainRow + extrasRows;
+  }).join('');
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Comanda</title>
 <style>
