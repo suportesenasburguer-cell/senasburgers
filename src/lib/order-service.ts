@@ -57,16 +57,21 @@ export const saveCustomerOrder = async (params: SaveOrderParams) => {
   }
 
   // Insert order items
-  const orderItems = items.map(ci => ({
-    order_id: order.id,
-    product_name: ci.item.name,
-    quantity: ci.quantity,
-    unit_price: ci.item.price,
-    extras: [
-      ci.addBatata ? 'Batata' : null,
-      ci.bebida?.name || null,
-    ].filter(Boolean).join(', ') || null,
-  }));
+  const orderItems = items.map(ci => {
+    const extrasParts: string[] = [];
+    if (ci.addBatata) extrasParts.push('Batata');
+    if (ci.bebida?.name) extrasParts.push(ci.bebida.name);
+    if (ci.addons && ci.addons.length > 0) {
+      ci.addons.forEach(a => extrasParts.push(`${a.quantity}x ${a.name} @${(a.price * a.quantity).toFixed(2)}`));
+    }
+    return {
+      order_id: order.id,
+      product_name: ci.item.name,
+      quantity: ci.quantity,
+      unit_price: ci.item.price,
+      extras: extrasParts.length > 0 ? extrasParts.join(', ') : null,
+    };
+  });
 
   await (supabase as any).from('customer_order_items').insert(orderItems);
 
