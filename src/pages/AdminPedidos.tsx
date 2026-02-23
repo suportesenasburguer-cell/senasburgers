@@ -279,12 +279,24 @@ const AdminPedidos = () => {
                 {/* Items */}
                 <div className="bg-muted/50 rounded-lg p-3 mb-3 space-y-1">
                   {(order.items || []).map((item, idx) => (
-                    <div key={idx} className="flex justify-between text-sm">
-                      <span className="text-foreground">
-                        {item.quantity}x {item.product_name}
-                        {item.extras && <span className="text-muted-foreground ml-1">({item.extras})</span>}
-                      </span>
-                      <span className="text-muted-foreground">{formatPrice(item.unit_price * item.quantity)}</span>
+                    <div key={idx}>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-foreground">
+                          {item.quantity}x {item.product_name}
+                        </span>
+                        <span className="text-muted-foreground">{formatPrice(item.unit_price * item.quantity)}</span>
+                      </div>
+                      {item.extras && item.extras.split(', ').map((extra, eidx) => {
+                        const priceMatch = extra.match(/@(\d+\.\d+)$/);
+                        const extraLabel = extra.replace(/@\d+\.\d+$/, '').trim();
+                        const extraPrice = priceMatch ? parseFloat(priceMatch[1]) : null;
+                        return (
+                          <div key={eidx} className="flex justify-between text-xs pl-4">
+                            <span className="text-muted-foreground">+ {extraLabel}</span>
+                            <span className="text-muted-foreground">{extraPrice ? formatPrice(extraPrice) : ''}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   ))}
                   {order.delivery_fee > 0 && (
