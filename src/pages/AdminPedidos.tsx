@@ -8,7 +8,8 @@ import { toast } from '@/hooks/use-toast';
 import { ArrowLeft, Clock, ChefHat, Truck, CheckCircle2, XCircle, RefreshCw, Printer, Volume2, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import AdminSoundSelector, { playSelectedSound } from '@/components/AdminSoundSelector';
-import OrderReceipt, { getReceiptHTML } from '@/components/OrderReceipt';
+import OrderReceipt, { getReceiptHTML, RECEIPT_FONTS } from '@/components/OrderReceipt';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface OrderItem {
   id: string;
@@ -58,6 +59,7 @@ const AdminPedidos = () => {
   const [orderCount, setOrderCount] = useState(0);
   const [showSoundSettings, setShowSoundSettings] = useState(false);
   const [previewOrderId, setPreviewOrderId] = useState<string | null>(null);
+  const [receiptFont, setReceiptFont] = useState(() => localStorage.getItem('receipt-font') || RECEIPT_FONTS[0].value);
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin)) {
@@ -165,6 +167,11 @@ const AdminPedidos = () => {
   const formatDate = (date: string) => {
     const d = new Date(date);
     return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  };
+
+  const handleFontChange = (value: string) => {
+    setReceiptFont(value);
+    localStorage.setItem('receipt-font', value);
   };
 
   const printOrder = (order: Order) => {
@@ -375,8 +382,25 @@ const AdminPedidos = () => {
 
                 {/* Receipt Preview */}
                 {previewOrderId === order.id && (
-                  <div className="mt-4 border border-border rounded-lg p-3 bg-white overflow-auto max-h-[500px]">
-                    <OrderReceipt order={order} />
+                  <div className="mt-4 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <label className="text-sm text-muted-foreground whitespace-nowrap">Fonte:</label>
+                      <Select value={receiptFont} onValueChange={handleFontChange}>
+                        <SelectTrigger className="w-48 h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {RECEIPT_FONTS.map(f => (
+                            <SelectItem key={f.value} value={f.value} className="text-xs" style={{ fontFamily: f.value }}>
+                              {f.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="border border-border rounded-lg p-3 bg-white overflow-auto max-h-[500px]">
+                      <OrderReceipt order={order} fontFamily={receiptFont} />
+                    </div>
                   </div>
                 )}
               </div>
