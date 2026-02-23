@@ -27,6 +27,17 @@ interface Order {
   items?: OrderItem[];
 }
 
+export const RECEIPT_FONTS = [
+  { label: 'Courier New', value: "'Courier New', Courier, monospace" },
+  { label: 'Arial', value: "Arial, Helvetica, sans-serif" },
+  { label: 'Verdana', value: "Verdana, Geneva, sans-serif" },
+  { label: 'Tahoma', value: "Tahoma, Geneva, sans-serif" },
+  { label: 'Lucida Console', value: "'Lucida Console', Monaco, monospace" },
+  { label: 'Consolas', value: "Consolas, 'Liberation Mono', monospace" },
+  { label: 'Georgia', value: "Georgia, 'Times New Roman', serif" },
+  { label: 'Times New Roman', value: "'Times New Roman', Times, serif" },
+];
+
 const PAYMENT_LABELS: Record<string, string> = {
   cartao: 'Cartão',
   dinheiro: 'Dinheiro',
@@ -47,9 +58,11 @@ const formatPrice = (price: number) =>
 
 interface OrderReceiptProps {
   order: Order;
+  fontFamily?: string;
 }
 
-const OrderReceipt: React.FC<OrderReceiptProps> = ({ order }) => {
+const OrderReceipt: React.FC<OrderReceiptProps> = ({ order, fontFamily }) => {
+  const font = fontFamily || localStorage.getItem('receipt-font') || RECEIPT_FONTS[0].value;
   const subtotal = (order.items || []).reduce((s, i) => s + i.unit_price * i.quantity, 0);
   const fullDate = new Date(order.created_at).toLocaleString('pt-BR', {
     day: '2-digit', month: '2-digit', year: 'numeric',
@@ -59,7 +72,7 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ order }) => {
   return (
     <div
       style={{
-        fontFamily: "'Courier New', Courier, monospace",
+        fontFamily: font,
         fontSize: 12,
         width: '100%',
         maxWidth: '80mm',
@@ -77,7 +90,6 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ order }) => {
 
       <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '4px 0' }} />
 
-      {/* Items */}
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <tbody>
           {(order.items || []).map((item, idx) => (
@@ -96,10 +108,10 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ order }) => {
                 const extraPrice = priceMatch ? parseFloat(priceMatch[1]) : null;
                 return (
                   <tr key={eidx}>
-                    <td style={{ padding: '0 0 1px 12px', fontSize: 11, color: '#555' }}>
+                    <td style={{ padding: '0 0 1px 12px', fontSize: 11, color: '#000' }}>
                       + {extraLabel}
                     </td>
-                    <td style={{ textAlign: 'right', fontSize: 11, color: '#555', whiteSpace: 'nowrap' }}>
+                    <td style={{ textAlign: 'right', fontSize: 11, color: '#000', whiteSpace: 'nowrap' }}>
                       {extraPrice ? formatPrice(extraPrice) : ''}
                     </td>
                   </tr>
@@ -112,7 +124,6 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ order }) => {
 
       <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '4px 0' }} />
 
-      {/* Totals */}
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <tbody>
           <tr>
@@ -153,7 +164,6 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ order }) => {
 
       <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '4px 0' }} />
 
-      {/* Customer & Logistics */}
       {order.customer_name && (
         <p style={{ fontSize: 11, padding: '1px 0' }}><b>Cliente:</b> {order.customer_name}</p>
       )}
@@ -187,6 +197,7 @@ export default OrderReceipt;
 
 /** Generate print HTML using the same layout */
 export const getReceiptHTML = (order: Order): string => {
+  const font = localStorage.getItem('receipt-font') || RECEIPT_FONTS[0].value;
   const subtotal = (order.items || []).reduce((s, i) => s + i.unit_price * i.quantity, 0);
   const fullDate = new Date(order.created_at).toLocaleString('pt-BR', {
     day: '2-digit', month: '2-digit', year: 'numeric',
@@ -199,7 +210,7 @@ export const getReceiptHTML = (order: Order): string => {
       const priceMatch = extra.match(/@(\d+\.\d+)$/);
       const extraLabel = extra.replace(/@\d+\.\d+$/, '').trim();
       const extraPrice = priceMatch ? parseFloat(priceMatch[1]) : null;
-      return `<tr><td style="padding:0 0 1px 12px;font-size:11px;color:#555">+ ${extraLabel}</td><td style="text-align:right;font-size:11px;color:#555;white-space:nowrap">${extraPrice ? formatPrice(extraPrice) : ''}</td></tr>`;
+      return `<tr><td style="padding:0 0 1px 12px;font-size:11px;color:#000">+ ${extraLabel}</td><td style="text-align:right;font-size:11px;color:#000;white-space:nowrap">${extraPrice ? formatPrice(extraPrice) : ''}</td></tr>`;
     }).join('') : '';
     return mainRow + extrasRows;
   }).join('');
@@ -207,7 +218,7 @@ export const getReceiptHTML = (order: Order): string => {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Comanda</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Courier New',Courier,monospace;font-size:12px;width:100%;max-width:80mm;margin:0 auto;padding:4px;color:#000;line-height:1.4}
+body{font-family:${font};font-size:12px;width:100%;max-width:80mm;margin:0 auto;padding:4px;color:#000;line-height:1.4}
 .center{text-align:center}
 .bold{font-weight:bold}
 .divider{border:none;border-top:1px dashed #000;margin:4px 0}
