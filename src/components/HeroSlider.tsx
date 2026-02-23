@@ -28,6 +28,7 @@ const HeroSlider = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [slides, setSlides] = useState<Slide[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showArrows, setShowArrows] = useState(() => localStorage.getItem('hero-show-arrows') !== 'false');
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -121,12 +122,16 @@ const HeroSlider = () => {
       })}
 
       {/* Navigation Arrows */}
-      <button onClick={prevSlide} className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full glass flex items-center justify-center text-foreground hover:bg-primary hover:text-primary-foreground transition-all duration-300 z-10" aria-label="Slide anterior">
-        <ChevronLeft className="w-5 h-5" />
-      </button>
-      <button onClick={nextSlide} className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full glass flex items-center justify-center text-foreground hover:bg-primary hover:text-primary-foreground transition-all duration-300 z-10" aria-label="Próximo slide">
-        <ChevronRight className="w-5 h-5" />
-      </button>
+      {showArrows && (
+        <>
+          <button onClick={prevSlide} className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full glass flex items-center justify-center text-foreground hover:bg-primary hover:text-primary-foreground transition-all duration-300 z-10" aria-label="Slide anterior">
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <button onClick={nextSlide} className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full glass flex items-center justify-center text-foreground hover:bg-primary hover:text-primary-foreground transition-all duration-300 z-10" aria-label="Próximo slide">
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </>
+      )}
 
       {/* Dots */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
