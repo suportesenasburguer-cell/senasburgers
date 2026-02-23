@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Trash2, Upload, Image as ImageIcon, GripVertical, Eye, EyeOff, Smartphone, Sparkles, Type, RectangleHorizontal } from 'lucide-react';
+import { Plus, Trash2, Upload, Image as ImageIcon, GripVertical, Eye, EyeOff, Smartphone, Sparkles, Type, RectangleHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent,
@@ -164,6 +164,7 @@ const BannerTab = () => {
   const [altText, setAltText] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [showArrows, setShowArrows] = useState(() => localStorage.getItem('hero-show-arrows') !== 'false');
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -266,6 +267,20 @@ const BannerTab = () => {
             <Plus className="w-4 h-4 mr-2" /> {uploading ? 'Enviando...' : 'Adicionar Slide'}
           </Button>
         </div>
+      </div>
+
+      {/* Global slider settings */}
+      <div className="bg-card border border-border rounded-xl p-4 mb-6">
+        <h3 className="text-sm font-semibold text-foreground mb-3">Exibição do Slider</h3>
+        <ToggleOption
+          label="Mostrar setas de navegação"
+          icon={ChevronRight}
+          checked={showArrows}
+          onChange={(v) => {
+            setShowArrows(v);
+            localStorage.setItem('hero-show-arrows', String(v));
+          }}
+        />
       </div>
 
       {slides.length > 0 ? (
