@@ -64,6 +64,7 @@ const Promocoes = () => {
       addBatata: false,
       bebida: null,
       totalPrice: promo.promo_price,
+      isPromo: true,
     });
 
     toast({

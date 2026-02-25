@@ -16,6 +16,7 @@ export interface CartItem {
   bebida: { id: string; name: string; price: number } | null;
   addons?: CartAddon[];
   totalPrice: number;
+  isPromo?: boolean;
 }
 
 export interface Order {

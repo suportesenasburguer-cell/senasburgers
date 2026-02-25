@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { awardLoyaltyPoints } from '@/lib/order-service';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
-import { ArrowLeft, Clock, ChefHat, Truck, CheckCircle2, XCircle, RefreshCw, Printer, Volume2, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Clock, ChefHat, Truck, CheckCircle2, XCircle, RefreshCw, Printer, Volume2, Eye, EyeOff, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import AdminSoundSelector, { playSelectedSound } from '@/components/AdminSoundSelector';
 import OrderReceipt, { getReceiptHTML, RECEIPT_FONTS } from '@/components/OrderReceipt';
@@ -172,6 +172,50 @@ const AdminPedidos = () => {
   const handleFontChange = (value: string) => {
     setReceiptFont(value);
     localStorage.setItem('receipt-font', value);
+  };
+
+  const sendWhatsApp = (order: Order) => {
+    if (!order.customer_phone) {
+      toast({ title: 'Sem telefone', description: 'Este pedido não possui telefone do cliente.', variant: 'destructive' });
+      return;
+    }
+
+    const paymentLabel: Record<string, string> = {
+      cartao: '💳 Cartão',
+      dinheiro: '💵 Dinheiro',
+      pix: '📱 PIX',
+    };
+
+    let message = `Pedido #${order.id.slice(0, 8).toUpperCase()}\n\n`;
+    message += `Olá${order.customer_name ? `, ${order.customer_name}` : ''}! Segue o resumo do seu pedido:\n\nItens:`;
+
+    (order.items || []).forEach(item => {
+      message += `\n➡ ${item.quantity}x ${item.product_name}`;
+      if (item.extras) message += `\n   ➕ ${item.extras}`;
+    });
+
+    message += `\n\n${paymentLabel[order.payment_method] || order.payment_method}`;
+
+    if (order.discount && order.discount > 0) {
+      message += `\n🏷️ Desconto${order.coupon_code ? ` (${order.coupon_code})` : ''}: -${formatPrice(order.discount)}`;
+    }
+
+    if (order.delivery_type === 'delivery') {
+      message += `\n\n🛵 Delivery (taxa: ${formatPrice(order.delivery_fee)})`;
+      if (order.address) message += `\n🏠 ${order.address}`;
+      if (order.reference_point) message += `\n📍 Ref: ${order.reference_point}`;
+    } else {
+      message += `\n\n🏪 Retirada na loja`;
+    }
+
+    if (order.observation) message += `\n\n📝 Obs: ${order.observation}`;
+
+    message += `\n\nTotal: ${formatPrice(order.total)}`;
+    message += `\n\nObrigado pela preferência! 😉`;
+
+    const phone = order.customer_phone.replace(/\D/g, '');
+    const fullPhone = phone.startsWith('55') ? phone : `55${phone}`;
+    window.open(`https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   const printOrder = (order: Order) => {
@@ -370,6 +414,15 @@ const AdminPedidos = () => {
                   >
                     {previewOrderId === order.id ? <EyeOff className="w-4 h-4 mr-1" /> : <Eye className="w-4 h-4 mr-1" />}
                     {previewOrderId === order.id ? 'Fechar' : 'Comanda'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => sendWhatsApp(order)}
+                    className="text-green-500 hover:text-green-400 hover:border-green-500"
+                    disabled={!order.customer_phone}
+                  >
+                    <MessageCircle className="w-4 h-4 mr-1" /> WhatsApp
                   </Button>
                   <Button
                     variant="outline"

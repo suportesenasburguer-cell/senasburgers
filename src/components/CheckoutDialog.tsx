@@ -159,17 +159,25 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
   const deliveryFee = isFreeDelivery ? 0 : baseDeliveryFee;
   const rewardDiscount = discountPercent > 0 ? total * discountPercent : 0;
 
+  // Calculate coupon discount excluding promo items
+  const nonPromoTotal = items
+    .filter(i => !i.isPromo)
+    .reduce((sum, i) => sum + i.totalPrice, 0);
+
   let couponDiscount = 0;
   if (appliedCoupon) {
     if (appliedCoupon.type === 'percentage') {
-      couponDiscount = total * (appliedCoupon.value / 100);
+      couponDiscount = nonPromoTotal * (appliedCoupon.value / 100);
     } else if (appliedCoupon.type === 'fixed') {
-      couponDiscount = Math.min(appliedCoupon.value, total);
+      couponDiscount = Math.min(appliedCoupon.value, nonPromoTotal);
     }
   }
 
   const discountAmount = rewardDiscount + couponDiscount;
   const finalTotal = total - discountAmount + deliveryFee;
+
+  const hasPromoItems = items.some(i => i.isPromo);
+  const hasNonPromoItems = items.some(i => !i.isPromo);
 
   const handleApplyCoupon = () => {
     setCouponError('');
@@ -178,6 +186,14 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
       setCouponError('Preencha o telefone antes de aplicar o cupom');
       return;
     }
+
+    // If all items are promo, reject coupon entirely
+    if (!hasNonPromoItems) {
+      setCouponError('Cupons não são válidos para itens em promoção');
+      setAppliedCoupon(null);
+      return;
+    }
+
     const { coupon, error } = validateCoupon(couponCode, customerPhone);
     if (coupon) {
       setAppliedCoupon(coupon);
@@ -477,20 +493,25 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
               Cupom de Desconto
             </Label>
             {appliedCoupon ? (
-              <div className="flex items-center justify-between p-3 rounded-xl border-2 border-primary bg-primary/10">
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-primary" />
-                  <span className="font-mono font-bold text-foreground text-sm">{appliedCoupon.code}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {appliedCoupon.type === 'percentage' && `${appliedCoupon.value}% off`}
-                    {appliedCoupon.type === 'fixed' && `- ${formatPrice(appliedCoupon.value)}`}
-                    {appliedCoupon.type === 'free_delivery' && 'Frete Grátis'}
-                  </span>
+              <>
+                <div className="flex items-center justify-between p-3 rounded-xl border-2 border-primary bg-primary/10">
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-primary" />
+                    <span className="font-mono font-bold text-foreground text-sm">{appliedCoupon.code}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {appliedCoupon.type === 'percentage' && `${appliedCoupon.value}% off`}
+                      {appliedCoupon.type === 'fixed' && `- ${formatPrice(appliedCoupon.value)}`}
+                      {appliedCoupon.type === 'free_delivery' && 'Frete Grátis'}
+                    </span>
+                  </div>
+                  <button onClick={handleRemoveCoupon} className="text-muted-foreground hover:text-destructive">
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-                <button onClick={handleRemoveCoupon} className="text-muted-foreground hover:text-destructive">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+                {hasPromoItems && (
+                  <p className="text-xs text-amber-500 mt-1">⚠️ O desconto do cupom não se aplica aos itens em promoção.</p>
+                )}
+              </>
             ) : (
               <div className="flex gap-2">
                 <Input
