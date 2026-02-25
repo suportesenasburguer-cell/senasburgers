@@ -1,3 +1,4 @@
+
 import { useState, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Tag, ClipboardList, ShoppingCart, Menu, X, User } from 'lucide-react';
@@ -10,7 +11,7 @@ const useIsOpen = () => {
     const now = new Date();
     const day = now.getDay();
     const time = now.getHours() * 60 + now.getMinutes();
-    const openDays = [0, 1, 4, 5, 6];
+    const openDays = [0, 1, 3, 4, 5, 6];
     const openTime = 18 * 60 + 15;
     const closeTime = 22 * 60 + 45;
     return openDays.includes(day) && time >= openTime && time <= closeTime;
