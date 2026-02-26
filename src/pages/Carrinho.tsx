@@ -82,6 +82,43 @@ const Carrinho = () => {
 
     const orderNumber = generateOrderNumber();
 
+    // Save to DB FIRST — block everything if it fails
+    let savedOrder: any = null;
+    const MAX_RETRIES = 3;
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      savedOrder = await saveCustomerOrder({
+        userId: user?.id || null,
+        items,
+        total: getTotal(),
+        deliveryFee: data.deliveryFee,
+        paymentMethod: data.paymentMethod,
+        deliveryType: data.deliveryType,
+        address: data.address,
+        observation: data.observation,
+        customerName: data.customerName,
+        customerPhone: data.customerPhone,
+        referencePoint: data.referencePoint,
+        discount: data.discount,
+        couponCode: data.couponCode,
+      });
+
+      if (savedOrder) break;
+
+      // Wait before retrying (exponential backoff)
+      if (attempt < MAX_RETRIES) {
+        await new Promise(r => setTimeout(r, attempt * 1000));
+      }
+    }
+
+    if (!savedOrder) {
+      toast({
+        title: 'Erro ao registrar pedido',
+        description: 'Não foi possível salvar seu pedido. Por favor, tente novamente. Seu carrinho não foi alterado.',
+        variant: 'destructive',
+      });
+      return; // DO NOT proceed — cart stays intact, no WhatsApp sent
+    }
+
     // Save order to local history
     const order = {
       id: `order-${Date.now()}`,
@@ -92,24 +129,7 @@ const Carrinho = () => {
     };
     addOrder(order);
 
-    // Save to DB (logged in or guest)
-    await saveCustomerOrder({
-      userId: user?.id || null,
-      items,
-      total: getTotal(),
-      deliveryFee: data.deliveryFee,
-      paymentMethod: data.paymentMethod,
-      deliveryType: data.deliveryType,
-      address: data.address,
-      observation: data.observation,
-      customerName: data.customerName,
-      customerPhone: data.customerPhone,
-      referencePoint: data.referencePoint,
-      discount: data.discount,
-      couponCode: data.couponCode,
-    });
-
-    // Open WhatsApp
+    // Open WhatsApp only AFTER successful DB save
     const phoneNumber = '5584988760462';
     const message = generateWhatsAppMessage(data, orderNumber);
     window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');

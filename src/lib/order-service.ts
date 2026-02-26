@@ -21,6 +21,7 @@ export const saveCustomerOrder = async (params: SaveOrderParams) => {
   const { userId, items, total, deliveryFee, paymentMethod, deliveryType, address, observation, customerName, customerPhone, referencePoint, discount, couponCode } = params;
   
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
+  const timestamp = new Date().toISOString();
 
   // Insert order
   const insertData: any = {
@@ -45,37 +46,79 @@ export const saveCustomerOrder = async (params: SaveOrderParams) => {
   if (customerPhone) insertData.customer_phone = customerPhone;
   if (referencePoint) insertData.reference_point = referencePoint;
 
-  const { data: order, error: orderError } = await (supabase as any)
-    .from('customer_orders')
-    .insert(insertData)
-    .select('id')
-    .single();
+  try {
+    console.log(`[ORDER-SERVICE ${timestamp}] Tentando salvar pedido...`, {
+      customerName,
+      customerPhone,
+      totalItems,
+      total: insertData.total,
+      paymentMethod,
+      deliveryType,
+    });
 
-  if (orderError) {
-    console.error('Error saving order:', orderError);
+    const { data: order, error: orderError } = await (supabase as any)
+      .from('customer_orders')
+      .insert(insertData)
+      .select('id')
+      .single();
+
+    if (orderError) {
+      console.error(`[ORDER-SERVICE ${timestamp}] ERRO ao salvar pedido:`, {
+        errorMessage: orderError.message,
+        errorCode: orderError.code,
+        errorDetails: orderError.details,
+        errorHint: orderError.hint,
+        customerName,
+        customerPhone,
+        insertData,
+      });
+      return null;
+    }
+
+    console.log(`[ORDER-SERVICE ${timestamp}] Pedido salvo com sucesso! ID: ${order.id}`);
+
+    // Insert order items
+    const orderItems = items.map(ci => {
+      const extrasParts: string[] = [];
+      if (ci.addBatata) extrasParts.push('Batata');
+      if (ci.bebida?.name) extrasParts.push(ci.bebida.name);
+      if (ci.addons && ci.addons.length > 0) {
+        ci.addons.forEach(a => extrasParts.push(`${a.quantity}x ${a.name} @${(a.price * a.quantity).toFixed(2)}`));
+      }
+      return {
+        order_id: order.id,
+        product_name: ci.item.name,
+        quantity: ci.quantity,
+        unit_price: ci.item.price,
+        extras: extrasParts.length > 0 ? extrasParts.join(', ') : null,
+      };
+    });
+
+    const { error: itemsError } = await (supabase as any).from('customer_order_items').insert(orderItems);
+
+    if (itemsError) {
+      console.error(`[ORDER-SERVICE ${timestamp}] ERRO ao salvar itens do pedido ${order.id}:`, {
+        errorMessage: itemsError.message,
+        errorCode: itemsError.code,
+        errorDetails: itemsError.details,
+        orderItems,
+      });
+      // Pedido foi criado mas sem itens — ainda retorna sucesso para não perder o pedido
+    } else {
+      console.log(`[ORDER-SERVICE ${timestamp}] ${orderItems.length} itens salvos para pedido ${order.id}`);
+    }
+
+    return { orderId: order.id, totalItems };
+  } catch (error) {
+    console.error(`[ORDER-SERVICE ${timestamp}] ERRO INESPERADO ao salvar pedido:`, {
+      error: error instanceof Error ? error.message : error,
+      stack: error instanceof Error ? error.stack : undefined,
+      customerName,
+      customerPhone,
+      insertData,
+    });
     return null;
   }
-
-  // Insert order items
-  const orderItems = items.map(ci => {
-    const extrasParts: string[] = [];
-    if (ci.addBatata) extrasParts.push('Batata');
-    if (ci.bebida?.name) extrasParts.push(ci.bebida.name);
-    if (ci.addons && ci.addons.length > 0) {
-      ci.addons.forEach(a => extrasParts.push(`${a.quantity}x ${a.name} @${(a.price * a.quantity).toFixed(2)}`));
-    }
-    return {
-      order_id: order.id,
-      product_name: ci.item.name,
-      quantity: ci.quantity,
-      unit_price: ci.item.price,
-      extras: extrasParts.length > 0 ? extrasParts.join(', ') : null,
-    };
-  });
-
-  await (supabase as any).from('customer_order_items').insert(orderItems);
-
-  return { orderId: order.id, totalItems };
 };
 
 export const awardLoyaltyPoints = async (userId: string, orderId: string, totalItems: number) => {
