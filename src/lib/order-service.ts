@@ -13,15 +13,38 @@ interface SaveOrderParams {
   customerName?: string;
   customerPhone?: string;
   referencePoint?: string;
+  neighborhood?: string;
   discount?: number;
   couponCode?: string;
 }
 
 export const saveCustomerOrder = async (params: SaveOrderParams) => {
-  const { userId, items, total, deliveryFee, paymentMethod, deliveryType, address, observation, customerName, customerPhone, referencePoint, discount, couponCode } = params;
+  const { userId, items, total, deliveryFee, paymentMethod, deliveryType, address, observation, customerName, customerPhone, referencePoint, neighborhood, discount, couponCode } = params;
   
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
   const timestamp = new Date().toISOString();
+
+  const normalizedAddress = deliveryType === 'delivery'
+    ? (() => {
+        const trimmedAddress = (address || '').trim();
+        if (!trimmedAddress) return null;
+        if (neighborhood && !trimmedAddress.toLowerCase().includes(neighborhood.toLowerCase())) {
+          return `${trimmedAddress} - ${neighborhood}`;
+        }
+        return trimmedAddress;
+      })()
+    : null;
+
+  if (deliveryType === 'delivery' && !normalizedAddress) {
+    console.error(`[ORDER-SERVICE ${timestamp}] Pedido delivery sem endereço válido. Cancelando salvamento.`, {
+      customerName,
+      customerPhone,
+      deliveryType,
+      neighborhood,
+      address,
+    });
+    return null;
+  }
 
   // Insert order
   const insertData: any = {
@@ -29,7 +52,7 @@ export const saveCustomerOrder = async (params: SaveOrderParams) => {
     delivery_fee: deliveryFee,
     payment_method: paymentMethod,
     delivery_type: deliveryType,
-    address: address || null,
+    address: normalizedAddress,
     observation: observation || null,
     status: 'sent',
     item_count: totalItems,
