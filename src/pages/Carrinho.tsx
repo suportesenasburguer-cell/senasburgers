@@ -98,6 +98,7 @@ const Carrinho = () => {
         customerName: data.customerName,
         customerPhone: data.customerPhone,
         referencePoint: data.referencePoint,
+        neighborhood: data.neighborhood,
         discount: data.discount,
         couponCode: data.couponCode,
       });
