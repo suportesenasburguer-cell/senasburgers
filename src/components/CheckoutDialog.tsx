@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useCustomerAuth } from '@/hooks/use-customer-auth';
 import { useCoupons, Coupon } from '@/hooks/use-coupons';
 import { cn } from '@/lib/utils';
+import { toast } from '@/hooks/use-toast';
 
 interface CheckoutDialogProps {
   open: boolean;
@@ -25,6 +26,7 @@ export interface CheckoutData {
   paymentMethod: string;
   deliveryType: 'delivery' | 'pickup';
   address: string;
+  neighborhood?: string;
   deliveryFee: number;
   observation: string;
   appliedRedemptionId?: string;
@@ -211,7 +213,8 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
   };
   const fullAddress = deliveryType === 'delivery' ? `${street}, Nº ${houseNumber}${complement ? ', ' + complement : ''} - ${neighborhood}` : '';
   const phoneDigits = customerPhone.replace(/\D/g, '');
-  const isValid = paymentMethod && deliveryType && customerName.trim() && phoneDigits.length === 11 && (deliveryType === 'pickup' || (street.trim() && houseNumber.trim() && neighborhood));
+  const hasValidNeighborhood = deliveryType !== 'delivery' || !!NEIGHBORHOODS.find(n => n.name === neighborhood);
+  const isValid = paymentMethod && deliveryType && customerName.trim() && phoneDigits.length === 11 && hasValidNeighborhood && (deliveryType === 'pickup' || (street.trim() && houseNumber.trim() && neighborhood));
   const MINIMUM_ORDER = 25;
   const isBelowMinimum = total < MINIMUM_ORDER;
 
@@ -219,6 +222,28 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
 
   const handleConfirm = async () => {
     if (!isValid || isBelowMinimum || isSubmitting) return;
+
+    const selectedNeighborhoodForSubmit = deliveryType === 'delivery'
+      ? NEIGHBORHOODS.find(n => n.name === neighborhood)
+      : null;
+
+    if (deliveryType === 'delivery' && !selectedNeighborhoodForSubmit) {
+      toast({
+        title: 'Bairro inválido',
+        description: 'Selecione novamente o bairro para confirmar a taxa de entrega.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const normalizedAddress = deliveryType === 'delivery'
+      ? `${street.trim()}, Nº ${houseNumber.trim()}${complement.trim() ? `, ${complement.trim()}` : ''} - ${selectedNeighborhoodForSubmit!.name}`
+      : '';
+
+    const normalizedDeliveryFee = deliveryType === 'delivery'
+      ? (isFreeDelivery ? 0 : selectedNeighborhoodForSubmit!.fee)
+      : 0;
+
     setIsSubmitting(true);
 
     try {
@@ -238,8 +263,9 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
       onConfirm({
         paymentMethod,
         deliveryType: deliveryType as 'delivery' | 'pickup',
-        address: fullAddress,
-        deliveryFee,
+        address: normalizedAddress,
+        neighborhood: selectedNeighborhoodForSubmit?.name,
+        deliveryFee: normalizedDeliveryFee,
         observation: observation.trim(),
         appliedRedemptionId: selectedRedemptionId || undefined,
         discount: discountAmount,
