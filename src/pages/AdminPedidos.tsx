@@ -318,6 +318,9 @@ const AdminPedidos = () => {
                       <span className="font-bold text-foreground text-sm">
                         #{order.id.slice(0, 8).toUpperCase()}
                       </span>
+                      <span className="text-[10px] text-muted-foreground font-mono" title={order.id}>
+                        {order.id}
+                      </span>
                       <span className={cn('inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border', statusConf.color)}>
                         {statusConf.icon} {statusConf.label}
                       </span>
