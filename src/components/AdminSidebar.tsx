@@ -1,4 +1,4 @@
-import { Package, LayoutGrid, Gift, Layers, Tag, Star, ClipboardList, BarChart3, LogOut, Home, Ticket, Image as ImageIcon } from 'lucide-react';
+import { Package, LayoutGrid, Gift, Layers, Tag, Star, ClipboardList, BarChart3, LogOut, Home, Ticket, Image as ImageIcon, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/use-auth';
 import {
@@ -84,6 +84,12 @@ const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {
                 <SidebarMenuButton onClick={() => navigate('/admin/relatorios')}>
                   <BarChart3 className="h-4 w-4" />
                   <span>Relatórios</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={() => navigate('/admin/visitas')}>
+                  <Eye className="h-4 w-4" />
+                  <span>Visitantes</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
