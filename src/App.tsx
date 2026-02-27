@@ -17,6 +17,8 @@ import AdminLogin from "./pages/AdminLogin";
 import Admin from "./pages/Admin";
 import AdminPedidos from "./pages/AdminPedidos";
 import AdminRelatorios from "./pages/AdminRelatorios";
+import AdminVisitas from "./pages/AdminVisitas";
+import VisitorTracker from "./components/VisitorTracker";
 import Loja from "./pages/Loja";
 import NotFound from "./pages/NotFound";
 
@@ -46,10 +48,12 @@ const App = () => {
               <Toaster />
               <Sonner />
               <BrowserRouter>
+                <VisitorTracker />
                 <Routes>
                   <Route path="/admin/login" element={<AdminLogin />} />
                   <Route path="/admin/pedidos" element={<AdminPedidos />} />
                   <Route path="/admin/relatorios" element={<AdminRelatorios />} />
+                  <Route path="/admin/visitas" element={<AdminVisitas />} />
                   <Route path="/admin" element={<Admin />} />
                   <Route path="/loja" element={<Loja />} />
                   <Route path="*" element={
