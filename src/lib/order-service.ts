@@ -1,0 +1,154 @@
+import { supabase } from '@/integrations/supabase/client';
+import { CartItem } from '@/contexts/CartContext';
+
+interface SaveOrderParams {
+  userId?: string | null;
+  items: CartItem[];
+  total: number;
+  deliveryFee: number;
+  paymentMethod: string;
+  deliveryType: string;
+  address: string;
+  observation: string;
+  customerName?: string;
+  customerPhone?: string;
+  referencePoint?: string;
+  neighborhood?: string;
+  discount?: number;
+  couponCode?: string;
+}
+
+export const saveCustomerOrder = async (params: SaveOrderParams) => {
+  const { userId, items, total, deliveryFee, paymentMethod, deliveryType, address, observation, customerName, customerPhone, referencePoint, neighborhood, discount, couponCode } = params;
+  
+  const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
+  const timestamp = new Date().toISOString();
+
+  const normalizedAddress = deliveryType === 'delivery'
+    ? (() => {
+        const trimmedAddress = (address || '').trim();
+        if (!trimmedAddress) return null;
+        if (neighborhood && !trimmedAddress.toLowerCase().includes(neighborhood.toLowerCase())) {
+          return `${trimmedAddress} - ${neighborhood}`;
+        }
+        return trimmedAddress;
+      })()
+    : null;
+
+  if (deliveryType === 'delivery' && !normalizedAddress) {
+    console.error(`[ORDER-SERVICE ${timestamp}] Pedido delivery sem endereço válido. Cancelando salvamento.`, {
+      customerName,
+      customerPhone,
+      deliveryType,
+      neighborhood,
+      address,
+    });
+    return null;
+  }
+
+  // Insert order
+  const insertData: any = {
+    total: total - (discount || 0) + deliveryFee,
+    delivery_fee: deliveryFee,
+    payment_method: paymentMethod,
+    delivery_type: deliveryType,
+    address: normalizedAddress,
+    observation: observation || null,
+    status: 'sent',
+    item_count: totalItems,
+    discount: discount || 0,
+    coupon_code: couponCode || null,
+  };
+
+  if (userId) {
+    insertData.user_id = userId;
+  }
+
+  // Add guest/customer info
+  if (customerName) insertData.customer_name = customerName;
+  if (customerPhone) insertData.customer_phone = customerPhone;
+  if (referencePoint) insertData.reference_point = referencePoint;
+
+  try {
+    console.log(`[ORDER-SERVICE ${timestamp}] Tentando salvar pedido...`, {
+      customerName,
+      customerPhone,
+      totalItems,
+      total: insertData.total,
+      paymentMethod,
+      deliveryType,
+    });
+
+    const { data: order, error: orderError } = await (supabase as any)
+      .from('customer_orders')
+      .insert(insertData)
+      .select('id')
+      .single();
+
+    if (orderError) {
+      console.error(`[ORDER-SERVICE ${timestamp}] ERRO ao salvar pedido:`, {
+        errorMessage: orderError.message,
+        errorCode: orderError.code,
+        errorDetails: orderError.details,
+        errorHint: orderError.hint,
+        customerName,
+        customerPhone,
+        insertData,
+      });
+      return null;
+    }
+
+    console.log(`[ORDER-SERVICE ${timestamp}] Pedido salvo com sucesso! ID: ${order.id}`);
+
+    // Insert order items
+    const orderItems = items.map(ci => {
+      const extrasParts: string[] = [];
+      if (ci.addBatata) extrasParts.push('Batata');
+      if (ci.bebida?.name) extrasParts.push(ci.bebida.name);
+      if (ci.addons && ci.addons.length > 0) {
+        ci.addons.forEach(a => extrasParts.push(`${a.quantity}x ${a.name} @${(a.price * a.quantity).toFixed(2)}`));
+      }
+      return {
+        order_id: order.id,
+        product_name: ci.item.name,
+        quantity: ci.quantity,
+        unit_price: ci.item.price,
+        extras: extrasParts.length > 0 ? extrasParts.join(', ') : null,
+      };
+    });
+
+    const { error: itemsError } = await (supabase as any).from('customer_order_items').insert(orderItems);
+
+    if (itemsError) {
+      console.error(`[ORDER-SERVICE ${timestamp}] ERRO ao salvar itens do pedido ${order.id}:`, {
+        errorMessage: itemsError.message,
+        errorCode: itemsError.code,
+        errorDetails: itemsError.details,
+        orderItems,
+      });
+      // Pedido foi criado mas sem itens — ainda retorna sucesso para não perder o pedido
+    } else {
+      console.log(`[ORDER-SERVICE ${timestamp}] ${orderItems.length} itens salvos para pedido ${order.id}`);
+    }
+
+    return { orderId: order.id, totalItems };
+  } catch (error) {
+    console.error(`[ORDER-SERVICE ${timestamp}] ERRO INESPERADO ao salvar pedido:`, {
+      error: error instanceof Error ? error.message : error,
+      stack: error instanceof Error ? error.stack : undefined,
+      customerName,
+      customerPhone,
+      insertData,
+    });
+    return null;
+  }
+};
+
+export const awardLoyaltyPoints = async (userId: string, orderId: string, totalItems: number) => {
+  await (supabase as any).from('loyalty_points').insert({
+    user_id: userId,
+    order_id: orderId,
+    points: totalItems,
+    description: `+${totalItems} ponto${totalItems > 1 ? 's' : ''} - Pedido`,
+  });
+};
