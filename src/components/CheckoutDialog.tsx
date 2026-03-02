@@ -531,7 +531,6 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
             </Label>
             <Textarea
               id="obs"
-              placeholder="Ex: Sem cebola, troco para R$50..."
               value={observation}
               onChange={(e) => setObservation(e.target.value)}
               className="resize-none bg-background border-border"
