@@ -524,20 +524,6 @@ const CheckoutDialog = ({ open, onOpenChange, items, total, onConfirm }: Checkou
             </div>
           )}
 
-          {/* Observation */}
-          <div className="space-y-2">
-            <Label htmlFor="obs" className="text-sm font-semibold text-foreground">
-              Observação <span className="text-muted-foreground font-normal">(opcional)</span>
-            </Label>
-            <Textarea
-              id="obs"
-              value={observation}
-              onChange={(e) => setObservation(e.target.value)}
-              className="resize-none bg-background border-border"
-              rows={2}
-            />
-          </div>
-
           {/* Coupon Code */}
           <div className="space-y-2">
             <Label className="text-sm font-semibold text-foreground flex items-center gap-2">
