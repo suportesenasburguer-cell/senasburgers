@@ -3,6 +3,7 @@ export interface MenuItem {
   name: string;
   description: string;
   price: number;
+  originalPrice?: number;
   image: string;
   category: 'hamburgueres' | 'acai' | 'bebidas';
   isPopular?: boolean;

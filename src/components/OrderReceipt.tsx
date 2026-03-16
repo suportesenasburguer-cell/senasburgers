@@ -104,17 +104,26 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ order, fontFamily }) => {
 
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <tbody>
-          {(order.items || []).map((item, idx) => (
+          {(order.items || []).map((item, idx) => {
+            const promoExtra = item.extras?.split(' | ').find(e => e.startsWith('PROMO:'));
+            const originalPrice = promoExtra ? parseFloat(promoExtra.replace('PROMO:', '')) : null;
+            return (
             <React.Fragment key={idx}>
               <tr>
                 <td style={{ padding: '1px 0', verticalAlign: 'top' }}>
                   {item.quantity}x {item.product_name}
+                  {originalPrice && (
+                    <span style={{ fontSize: 10, marginLeft: 4 }}>
+                      <span style={{ textDecoration: 'line-through', color: '#999' }}>{formatPrice(originalPrice)}</span>
+                      <span style={{ color: '#d00', fontWeight: 'bold', marginLeft: 3 }}>{formatPrice(item.unit_price)}</span>
+                    </span>
+                  )}
                 </td>
                 <td style={{ textAlign: 'right', whiteSpace: 'nowrap', padding: '1px 0' }}>
                   {formatPrice(item.unit_price * item.quantity)}
                 </td>
               </tr>
-              {item.extras && item.extras.split(' | ').map((extra, eidx) => {
+              {item.extras && item.extras.split(' | ').filter(e => !e.startsWith('PROMO:')).map((extra, eidx) => {
                 const priceMatch = extra.match(/@(\d+\.\d+)$/);
                 const extraLabel = extra.replace(/@\d+\.\d+$/, '').trim();
                 const extraPrice = priceMatch ? parseFloat(priceMatch[1]) : null;
@@ -137,7 +146,8 @@ const OrderReceipt: React.FC<OrderReceiptProps> = ({ order, fontFamily }) => {
                 </tr>
               )}
             </React.Fragment>
-          ))}
+          );})}
+
         </tbody>
       </table>
 
@@ -248,8 +258,13 @@ export const getReceiptHTML = (order: Order): string => {
   const estimateText = `${fmtTime(est30)} - ${fmtTime(est50)}`;
 
   const itemsHtml = (order.items || []).map(item => {
-    const mainRow = `<tr><td>${item.quantity}x ${item.product_name}</td><td style="text-align:right;white-space:nowrap">${formatPrice(item.unit_price * item.quantity)}</td></tr>`;
-    const extrasRows = item.extras ? item.extras.split(' | ').map(extra => {
+    const promoExtra = item.extras?.split(' | ').find(e => e.startsWith('PROMO:'));
+    const originalPrice = promoExtra ? parseFloat(promoExtra.replace('PROMO:', '')) : null;
+    const promoTag = originalPrice
+      ? ` <span style="font-size:10px"><s style="color:#999">${formatPrice(originalPrice)}</s> <b style="color:#d00">${formatPrice(item.unit_price)}</b></span>`
+      : '';
+    const mainRow = `<tr><td>${item.quantity}x ${item.product_name}${promoTag}</td><td style="text-align:right;white-space:nowrap">${formatPrice(item.unit_price * item.quantity)}</td></tr>`;
+    const extrasRows = item.extras ? item.extras.split(' | ').filter(e => !e.startsWith('PROMO:')).map(extra => {
       const priceMatch = extra.match(/@(\d+\.\d+)$/);
       const extraLabel = extra.replace(/@\d+\.\d+$/, '').trim();
       const extraPrice = priceMatch ? parseFloat(priceMatch[1]) : null;

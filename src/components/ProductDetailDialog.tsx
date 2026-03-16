@@ -15,6 +15,7 @@ interface ProductItem {
   name: string;
   description: string;
   price: number;
+  promo_price?: number | null;
   image_url: string | null;
   is_popular: boolean;
   category_id: string;
@@ -40,6 +41,7 @@ interface ProductAddon {
   price: number;
   category_id: string;
   section: string | null;
+  section_max: number | null;
   max_qty: number | null;
   is_active: boolean;
 }
@@ -110,7 +112,7 @@ const ProductDetailDialog = ({ item, open, onOpenChange }: ProductDetailDialogPr
   const fetchAddons = async () => {
     const { data } = await (supabase as any)
       .from('product_addons')
-      .select('id, name, price, category_id, category_ids, section, max_qty, is_active')
+      .select('id, name, price, category_id, category_ids, section, section_max, max_qty, is_active')
       .eq('is_active', true)
       .order('sort_order');
     // Filter client-side: addon applies if category_ids contains item.category_id, or fallback to category_id
@@ -161,7 +163,18 @@ const ProductDetailDialog = ({ item, open, onOpenChange }: ProductDetailDialogPr
     setSelectedAddons(prev => {
       const next = new Map(prev);
       const current = next.get(id) || 0;
-      const newVal = Math.min(maxQty, Math.max(0, current + delta));
+      let newVal = Math.min(maxQty, Math.max(0, current + delta));
+
+      // Enforce section_max: total selections in the section
+      if (delta > 0 && addon?.section_max) {
+        const sectionKey = addon.section || '__default__';
+        const sectionAddonIds = addons.filter(a => (a.section || '__default__') === sectionKey).map(a => a.id);
+        const currentSectionTotal = sectionAddonIds.reduce((sum, aid) => sum + (aid === id ? 0 : (next.get(aid) || 0)), 0);
+        const remaining = addon.section_max - currentSectionTotal;
+        newVal = Math.min(newVal, remaining);
+        if (newVal <= 0) return prev;
+      }
+
       if (newVal === 0) next.delete(id);
       else next.set(id, newVal);
 
@@ -174,9 +187,17 @@ const ProductDetailDialog = ({ item, open, onOpenChange }: ProductDetailDialogPr
     });
   };
 
-  // Current effective price (size price or base price)
+  // Helper to get total selected in a section
+  const getSectionTotal = (sectionKey: string) => {
+    const sectionAddonIds = addons.filter(a => (a.section || '__default__') === sectionKey).map(a => a.id);
+    return sectionAddonIds.reduce((sum, id) => sum + (selectedAddons.get(id) || 0), 0);
+  };
+
+  // Current effective price (size price, promo price, or base price)
   const selectedSize = sizes.find(s => s.id === selectedSizeId);
-  const effectivePrice = selectedSize ? selectedSize.price : Number(item.price);
+  const hasPromoPrice = item.promo_price != null && item.promo_price > 0 && item.promo_price < item.price;
+  const basePrice = hasPromoPrice ? item.promo_price! : Number(item.price);
+  const effectivePrice = selectedSize ? selectedSize.price : basePrice;
 
   const upsellTotal = upsells
     .filter(u => selectedUpsells.has(u.id))
@@ -209,6 +230,7 @@ const ProductDetailDialog = ({ item, open, onOpenChange }: ProductDetailDialogPr
         name: item.name + sizeSuffix,
         description: item.description,
         price: effectivePrice + addonsTotal,
+        originalPrice: hasPromoPrice ? Number(item.price) + addonsTotal : undefined,
         image: item.image_url || '',
         category: (categorySlug as 'hamburgueres' | 'acai' | 'bebidas') || 'hamburgueres',
       },
@@ -295,14 +317,21 @@ const ProductDetailDialog = ({ item, open, onOpenChange }: ProductDetailDialogPr
               {item.name}
             </DialogTitle>
             <p className="text-muted-foreground mb-4">{item.description}</p>
-            <span
-              className={cn(
-                'text-2xl font-bold',
-                categorySlug === 'acai' ? 'text-acai' : 'text-primary'
+            <div className="flex items-center gap-2">
+              {hasPromoPrice && sizes.length === 0 && (
+                <span className="text-lg text-muted-foreground line-through">
+                  {formatPrice(Number(item.price))}
+                </span>
               )}
-            >
-              {sizes.length > 0 && selectedSize ? formatPrice(selectedSize.price) : formatPrice(Number(item.price))}
-            </span>
+              <span
+                className={cn(
+                  'text-2xl font-bold',
+                  categorySlug === 'acai' ? 'text-acai' : 'text-primary'
+                )}
+              >
+                {sizes.length > 0 && selectedSize ? formatPrice(selectedSize.price) : formatPrice(basePrice)}
+              </span>
+            </div>
 
             {/* Size Selector */}
             {sizes.length > 0 && (
@@ -335,17 +364,28 @@ const ProductDetailDialog = ({ item, open, onOpenChange }: ProductDetailDialogPr
                 if (!sections.has(key)) sections.set(key, []);
                 sections.get(key)!.push(a);
               });
-              return Array.from(sections.entries()).map(([sectionKey, sectionAddons]) => (
+              return Array.from(sections.entries()).map(([sectionKey, sectionAddons]) => {
+                const sectionMax = sectionAddons.find(a => a.section_max)?.section_max || null;
+                const sectionTotal = getSectionTotal(sectionKey);
+                const sectionFull = sectionMax ? sectionTotal >= sectionMax : false;
+
+                return (
                 <div key={sectionKey} className="mt-6">
                   <div className="flex items-center gap-2 mb-3">
                     <CirclePlus className="w-4 h-4 text-primary" />
                     <span className="text-sm font-semibold text-foreground">
                       {sectionKey === '__default__' ? 'Adicione no seu pedido' : sectionKey}
                     </span>
+                    {sectionMax && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+                        {sectionTotal}/{sectionMax}
+                      </span>
+                    )}
                   </div>
                   <div className="space-y-2">
                     {sectionAddons.map(a => {
                       const qty = selectedAddons.get(a.id) || 0;
+                      const canAdd = !sectionFull || qty > 0;
                       return (
                         <div
                           key={a.id}
@@ -385,7 +425,13 @@ const ProductDetailDialog = ({ item, open, onOpenChange }: ProductDetailDialogPr
                               <span className="w-5 text-center text-sm font-semibold text-foreground">{qty}</span>
                               <button
                                 onClick={() => changeAddonQty(a.id, 1)}
-                                className="w-7 h-7 flex items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/80 transition-colors"
+                                disabled={sectionFull && qty === 0}
+                                className={cn(
+                                  "w-7 h-7 flex items-center justify-center rounded-full transition-colors",
+                                  sectionFull && qty === 0
+                                    ? "bg-muted text-muted-foreground opacity-30"
+                                    : "bg-primary text-primary-foreground hover:bg-primary/80"
+                                )}
                               >
                                 <Plus className="w-3 h-3" />
                               </button>
@@ -396,7 +442,8 @@ const ProductDetailDialog = ({ item, open, onOpenChange }: ProductDetailDialogPr
                     })}
                   </div>
                 </div>
-              ));
+                );
+              });
             })()}
 
             {/* Observation */}

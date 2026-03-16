@@ -15,6 +15,7 @@ export interface DbProduct {
   name: string;
   description: string;
   price: number;
+  promo_price: number | null;
   image_url: string | null;
   category_id: string;
   is_popular: boolean;

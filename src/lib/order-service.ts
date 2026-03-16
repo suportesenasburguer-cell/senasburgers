@@ -116,6 +116,9 @@ export const saveCustomerOrder = async (params: SaveOrderParams) => {
           extrasParts.push(`${label} @${(a.price * a.quantity).toFixed(2)}`);
         });
       }
+      if (ci.item.originalPrice && ci.item.originalPrice > ci.item.price) {
+        extrasParts.push(`PROMO:${ci.item.originalPrice.toFixed(2)}`);
+      }
       return {
         order_id: order.id,
         product_name: ci.item.name,

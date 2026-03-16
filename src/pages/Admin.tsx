@@ -51,6 +51,7 @@ interface Product {
   name: string;
   description: string;
   price: number;
+  promo_price: number | null;
   image_url: string | null;
   category_id: string;
   is_popular: boolean;
@@ -113,6 +114,7 @@ interface Addon {
   category_id: string;
   category_ids: string[];
   section: string | null;
+  section_max: number | null;
   max_qty: number | null;
   is_active: boolean;
   sort_order: number;
@@ -158,7 +160,7 @@ const Admin = () => {
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState({
-    name: '', description: '', price: '', category_id: '', is_popular: false, image_url: ''
+    name: '', description: '', price: '', promo_price: '', category_id: '', is_popular: false, image_url: ''
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
 
@@ -183,7 +185,7 @@ const Admin = () => {
   // Addon form
   const [showAddonForm, setShowAddonForm] = useState(false);
   const [editingAddon, setEditingAddon] = useState<Addon | null>(null);
-  const [addonForm, setAddonForm] = useState({ name: '', price: '', category_ids: [] as string[], section: '', max_qty: '' });
+  const [addonForm, setAddonForm] = useState({ name: '', price: '', category_ids: [] as string[], section: '', max_qty: '', section_max: '' });
   const [addonCategoryFilter, setAddonCategoryFilter] = useState<string>('all');
 
   // Reward form
@@ -265,6 +267,7 @@ const Admin = () => {
         name: productForm.name,
         description: productForm.description,
         price: parseFloat(productForm.price),
+        promo_price: productForm.promo_price ? parseFloat(productForm.promo_price) : null,
         category_id: productForm.category_id,
         is_popular: productForm.is_popular,
         image_url: imageUrl || null,
@@ -313,6 +316,7 @@ const Admin = () => {
       name: p.name,
       description: p.description,
       price: String(p.price),
+      promo_price: p.promo_price ? String(p.promo_price) : '',
       category_id: p.category_id,
       is_popular: p.is_popular,
       image_url: p.image_url || '',
@@ -329,7 +333,7 @@ const Admin = () => {
   };
 
   const resetProductForm = () => {
-    setProductForm({ name: '', description: '', price: '', category_id: '', is_popular: false, image_url: '' });
+    setProductForm({ name: '', description: '', price: '', promo_price: '', category_id: '', is_popular: false, image_url: '' });
     setEditingProduct(null);
     setImageFile(null);
     setShowProductForm(false);
@@ -498,6 +502,7 @@ const Admin = () => {
       category_id: addonForm.category_ids[0],
       category_ids: addonForm.category_ids,
       section: addonForm.section.trim() || null,
+      section_max: addonForm.section_max ? parseInt(addonForm.section_max) : null,
       max_qty: addonForm.max_qty ? parseInt(addonForm.max_qty) : null,
     };
 
@@ -529,13 +534,14 @@ const Admin = () => {
       price: String(a.price),
       category_ids: a.category_ids?.length ? a.category_ids : [a.category_id],
       section: a.section || '',
+      section_max: a.section_max ? String(a.section_max) : '',
       max_qty: a.max_qty ? String(a.max_qty) : '',
     });
     setShowAddonForm(true);
   };
 
   const resetAddonForm = () => {
-    setAddonForm({ name: '', price: '', category_ids: [], section: '', max_qty: '' });
+    setAddonForm({ name: '', price: '', category_ids: [], section: '', section_max: '', max_qty: '' });
     setEditingAddon(null);
     setShowAddonForm(false);
   };
@@ -794,7 +800,7 @@ const Admin = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-sm text-muted-foreground mb-1 block">Preço (R$)</label>
+                    <label className="text-sm text-muted-foreground mb-1 block">Preço original (R$)</label>
                     <Input
                       type="number"
                       step="0.01"
@@ -802,6 +808,21 @@ const Admin = () => {
                       onChange={e => setProductForm(f => ({ ...f, price: e.target.value }))}
                       placeholder="0.00"
                     />
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-1 block">Preço promocional (R$)</label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={productForm.promo_price}
+                      onChange={e => setProductForm(f => ({ ...f, promo_price: e.target.value }))}
+                      placeholder="Deixe vazio se não houver promoção"
+                    />
+                    {productForm.promo_price && parseFloat(productForm.promo_price) > 0 && productForm.price && (
+                      <p className="text-xs text-green-500 mt-1">
+                        Desconto de {((1 - parseFloat(productForm.promo_price) / parseFloat(productForm.price)) * 100).toFixed(0)}% — será exibido como "De {Number(productForm.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} por {Number(productForm.promo_price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}"
+                      </p>
+                    )}
                   </div>
                   <div className="md:col-span-2">
                     <label className="text-sm text-muted-foreground mb-1 block">Descrição</label>
@@ -1401,6 +1422,19 @@ const Admin = () => {
                     </p>
                   </div>
                   <div>
+                    <label className="text-sm text-muted-foreground mb-1 block">Máx. seleções na seção (opcional)</label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={addonForm.section_max}
+                      onChange={e => setAddonForm(f => ({ ...f, section_max: e.target.value }))}
+                      placeholder="Sem limite (pode selecionar todos)"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Limita quantos itens o cliente pode escolher <strong>no total</strong> dentro desta seção. Ex: "1" = escolhe apenas 1 molho da seção "Escolha seu molho". Deixe vazio para sem limite.
+                    </p>
+                  </div>
+                  <div>
                     <label className="text-sm text-muted-foreground mb-1 block">Qtd. máxima por pedido (opcional)</label>
                     <Input
                       type="number"
@@ -1410,7 +1444,7 @@ const Admin = () => {
                       placeholder="Sem limite"
                     />
                     <p className="text-xs text-muted-foreground mt-1">
-                      Limita quantas unidades deste adicional o cliente pode pedir. Deixe vazio para sem limite.
+                      Limita quantas unidades deste adicional individual o cliente pode pedir. Deixe vazio para sem limite.
                     </p>
                   </div>
                 </div>
@@ -1468,36 +1502,45 @@ const Admin = () => {
                 <div className="bg-card border border-border rounded-xl p-4 mb-4">
                   <span className="text-sm font-semibold text-foreground mb-3 block">Ordem das seções no cardápio</span>
                   <div className="space-y-2">
-                    {allSections.map((sec, idx) => (
-                      <div key={sec} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 border border-border">
-                        <span className="flex-1 text-sm font-medium text-foreground">
-                          {sec === '__default__' ? 'Sem seção (aparece como "Adicione no seu pedido")' : sec}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {addons.filter(a => sec === '__default__' ? !a.section : a.section === sec).length} itens
-                        </span>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            disabled={idx === 0}
-                            onClick={() => moveSection(idx, -1)}
-                          >
-                            <ArrowUp className="w-3.5 h-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            disabled={idx === allSections.length - 1}
-                            onClick={() => moveSection(idx, 1)}
-                          >
-                            <ArrowDown className="w-3.5 h-3.5" />
-                          </Button>
+                    {allSections.map((sec, idx) => {
+                      const sectionAddonsForSec = addons.filter(a => sec === '__default__' ? !a.section : a.section === sec);
+                      const sectionMax = sectionAddonsForSec.find(a => a.section_max)?.section_max;
+                      return (
+                        <div key={sec} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 border border-border">
+                          <span className="flex-1 text-sm font-medium text-foreground">
+                            {sec === '__default__' ? 'Sem seção (aparece como "Adicione no seu pedido")' : sec}
+                          </span>
+                          {sectionMax && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                              Máx: {sectionMax}
+                            </span>
+                          )}
+                          <span className="text-xs text-muted-foreground">
+                            {sectionAddonsForSec.length} itens
+                          </span>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              disabled={idx === 0}
+                              onClick={() => moveSection(idx, -1)}
+                            >
+                              <ArrowUp className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              disabled={idx === allSections.length - 1}
+                              onClick={() => moveSection(idx, 1)}
+                            >
+                              <ArrowDown className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               );
@@ -1559,7 +1602,7 @@ const Admin = () => {
                                 )}
                               </div>
                               <span className="text-sm text-muted-foreground">
-                                Categorias: {(a.category_ids?.length ? a.category_ids : [a.category_id]).map(id => getCategoryName(id)).filter(Boolean).join(', ')}{a.section ? ` · Seção: ${a.section}` : ''}{a.max_qty ? ` · Máx: ${a.max_qty}` : ''} · Aplica a {products.filter(p => (a.category_ids?.length ? a.category_ids : [a.category_id]).includes(p.category_id)).length} produtos
+                                Categorias: {(a.category_ids?.length ? a.category_ids : [a.category_id]).map(id => getCategoryName(id)).filter(Boolean).join(', ')}{a.section ? ` · Seção: ${a.section}` : ''}{a.section_max ? ` · Máx seção: ${a.section_max}` : ''}{a.max_qty ? ` · Máx: ${a.max_qty}` : ''} · Aplica a {products.filter(p => (a.category_ids?.length ? a.category_ids : [a.category_id]).includes(p.category_id)).length} produtos
                               </span>
                             </div>
                           </div>

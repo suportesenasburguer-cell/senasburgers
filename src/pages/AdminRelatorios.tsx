@@ -35,11 +35,16 @@ interface Expense {
   amount: number;
   category: string;
   date: string;
+  type: 'expense' | 'income';
 }
 
 const EXPENSE_CATEGORIES = [
   'Ingredientes', 'Embalagens', 'Gás', 'Funcionários',
   'Aluguel', 'Marketing', 'Manutenção', 'Outros'
+];
+
+const INCOME_CATEGORIES = [
+  'Vendas extras', 'Serviços', 'Reembolso', 'Investimento', 'Outros'
 ];
 
 const PERIODS = [
@@ -74,6 +79,7 @@ const AdminRelatorios = () => {
     return saved ? JSON.parse(saved) : [];
   });
   const [showExpenseDialog, setShowExpenseDialog] = useState(false);
+  const [expenseDialogType, setExpenseDialogType] = useState<'expense' | 'income'>('expense');
   const [newExpense, setNewExpense] = useState({ description: '', amount: '', category: EXPENSE_CATEGORIES[0], date: new Date().toISOString().split('T')[0] });
 
   useEffect(() => {
@@ -134,8 +140,9 @@ const AdminRelatorios = () => {
   const totalRevenue = completed.reduce((s, o) => s + Number(o.total), 0);
   const totalItems = completed.reduce((s, o) => s + o.item_count, 0);
   const avgTicket = completed.length > 0 ? totalRevenue / completed.length : 0;
-  const totalExpenses = filteredExpenses.reduce((s, e) => s + (e as any).amount, 0);
-  const netProfit = totalRevenue - totalExpenses;
+  const totalExpenses = filteredExpenses.filter((e: any) => (e.type || 'expense') === 'expense').reduce((s, e) => s + (e as any).amount, 0);
+  const totalIncome = filteredExpenses.filter((e: any) => e.type === 'income').reduce((s, e) => s + (e as any).amount, 0);
+  const netProfit = totalRevenue + totalIncome - totalExpenses;
 
   // Chart data
   const paymentData = Object.entries(
@@ -190,10 +197,17 @@ const AdminRelatorios = () => {
       amount: parseFloat(newExpense.amount),
       category: newExpense.category,
       date: new Date(newExpense.date + 'T12:00:00').toISOString(),
+      type: expenseDialogType,
     };
     setExpenses(prev => [expense, ...prev]);
-    setNewExpense({ description: '', amount: '', category: EXPENSE_CATEGORIES[0], date: new Date().toISOString().split('T')[0] });
+    setNewExpense({ description: '', amount: '', category: expenseDialogType === 'income' ? INCOME_CATEGORIES[0] : EXPENSE_CATEGORIES[0], date: new Date().toISOString().split('T')[0] });
     setShowExpenseDialog(false);
+  };
+
+  const openExpenseDialog = (type: 'expense' | 'income') => {
+    setExpenseDialogType(type);
+    setNewExpense({ description: '', amount: '', category: type === 'income' ? INCOME_CATEGORIES[0] : EXPENSE_CATEGORIES[0], date: new Date().toISOString().split('T')[0] });
+    setShowExpenseDialog(true);
   };
 
   const handleDeleteExpense = (id: string) => {
@@ -430,9 +444,15 @@ const AdminRelatorios = () => {
             <h3 className="text-sm font-semibold text-foreground mb-4">Resumo Financeiro</h3>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Receita bruta</span>
+                <span className="text-sm text-muted-foreground">Receita bruta (pedidos)</span>
                 <span className="font-bold text-foreground">{fmt(totalRevenue)}</span>
               </div>
+              {totalIncome > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Entradas extras</span>
+                  <span className="font-bold text-green-500">+ {fmt(totalIncome)}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Total de gastos</span>
                 <span className="font-bold text-red-500">- {fmt(totalExpenses)}</span>
@@ -443,11 +463,11 @@ const AdminRelatorios = () => {
                   {fmt(netProfit)}
                 </span>
               </div>
-              {totalRevenue > 0 && (
+              {(totalRevenue + totalIncome) > 0 && (
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-muted-foreground">Margem de lucro</span>
                   <span className={cn("text-sm font-semibold", netProfit >= 0 ? "text-green-500" : "text-red-500")}>
-                    {((netProfit / totalRevenue) * 100).toFixed(1)}%
+                    {((netProfit / (totalRevenue + totalIncome)) * 100).toFixed(1)}%
                   </span>
                 </div>
               )}
@@ -459,17 +479,23 @@ const AdminRelatorios = () => {
         <div className="rounded-2xl border border-border bg-card overflow-hidden">
           <div className="px-5 py-4 border-b border-border flex items-center justify-between">
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <Wallet className="w-4 h-4 text-primary" /> Controle de Gastos
+              <Wallet className="w-4 h-4 text-primary" /> Controle Financeiro
             </h3>
-            <Button size="sm" className="gradient-burger text-primary-foreground gap-1 rounded-lg" onClick={() => setShowExpenseDialog(true)}>
-              <PlusCircle className="w-4 h-4" /> Adicionar
-            </Button>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" className="gap-1 rounded-lg border-green-500/30 text-green-500 hover:bg-green-500/10" onClick={() => openExpenseDialog('income')}>
+                <TrendingUp className="w-4 h-4" /> Entradas
+              </Button>
+              <Button size="sm" className="gradient-burger text-primary-foreground gap-1 rounded-lg" onClick={() => openExpenseDialog('expense')}>
+                <PlusCircle className="w-4 h-4" /> Gasto
+              </Button>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
                   <th className="text-left py-3 px-5 text-xs text-muted-foreground font-medium uppercase tracking-wider">Data</th>
+                  <th className="text-left py-3 px-5 text-xs text-muted-foreground font-medium uppercase tracking-wider">Tipo</th>
                   <th className="text-left py-3 px-5 text-xs text-muted-foreground font-medium uppercase tracking-wider">Descrição</th>
                   <th className="text-left py-3 px-5 text-xs text-muted-foreground font-medium uppercase tracking-wider">Categoria</th>
                   <th className="text-right py-3 px-5 text-xs text-muted-foreground font-medium uppercase tracking-wider">Valor</th>
@@ -479,29 +505,39 @@ const AdminRelatorios = () => {
               <tbody>
                 {filteredExpenses.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="text-center py-10 text-muted-foreground">
+                    <td colSpan={6} className="text-center py-10 text-muted-foreground">
                       <Wallet className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                      <p className="text-sm">Nenhum gasto registrado no período</p>
+                      <p className="text-sm">Nenhum registro no período</p>
                     </td>
                   </tr>
                 ) : (
-                  filteredExpenses.map((exp: any, idx: number) => (
+                  filteredExpenses.map((exp: any, idx: number) => {
+                    const isIncome = exp.type === 'income';
+                    return (
                     <tr key={exp.id} className={cn("border-b border-border/50 transition-colors hover:bg-muted/20", idx % 2 === 0 && "bg-muted/5")}>
                       <td className="py-3 px-5 text-xs text-muted-foreground">
                         {new Date(exp.date || exp.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                      </td>
+                      <td className="py-3 px-5">
+                        <span className={cn("text-[11px] font-medium px-2 py-0.5 rounded-full", isIncome ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500")}>
+                          {isIncome ? 'Entrada' : 'Gasto'}
+                        </span>
                       </td>
                       <td className="py-3 px-5 text-foreground">{exp.description}</td>
                       <td className="py-3 px-5">
                         <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{exp.category}</span>
                       </td>
-                      <td className="py-3 px-5 text-right font-semibold text-red-500">{fmt(exp.amount)}</td>
+                      <td className={cn("py-3 px-5 text-right font-semibold", isIncome ? "text-green-500" : "text-red-500")}>
+                        {isIncome ? '+' : '-'} {fmt(exp.amount)}
+                      </td>
                       <td className="py-3 px-5 text-center">
                         <button onClick={() => handleDeleteExpense(exp.id)} className="text-muted-foreground hover:text-red-500 transition-colors">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -558,17 +594,19 @@ const AdminRelatorios = () => {
         </div>
       </div>
 
-      {/* Add Expense Dialog */}
+      {/* Add Expense/Income Dialog */}
       <Dialog open={showExpenseDialog} onOpenChange={setShowExpenseDialog}>
         <DialogContent className="sm:max-w-md bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Registrar Gasto</DialogTitle>
+            <DialogTitle className="text-foreground">
+              {expenseDialogType === 'income' ? 'Registrar Entrada' : 'Registrar Gasto'}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
               <Label className="text-sm text-foreground">Descrição</Label>
               <Input
-                placeholder="Ex: Compra de pães"
+                placeholder={expenseDialogType === 'income' ? 'Ex: Venda de materiais' : 'Ex: Compra de pães'}
                 value={newExpense.description}
                 onChange={e => setNewExpense(p => ({ ...p, description: e.target.value }))}
                 className="bg-background border-border mt-1"
@@ -600,14 +638,16 @@ const AdminRelatorios = () => {
             <div>
               <Label className="text-sm text-foreground">Categoria</Label>
               <div className="flex flex-wrap gap-2 mt-2">
-                {EXPENSE_CATEGORIES.map(cat => (
+                {(expenseDialogType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(cat => (
                   <button
                     key={cat}
                     onClick={() => setNewExpense(p => ({ ...p, category: cat }))}
                     className={cn(
                       "px-3 py-1.5 rounded-lg text-xs font-medium transition-all border",
                       newExpense.category === cat
-                        ? "border-primary bg-primary/10 text-primary"
+                        ? expenseDialogType === 'income'
+                          ? "border-green-500 bg-green-500/10 text-green-500"
+                          : "border-primary bg-primary/10 text-primary"
                         : "border-border text-muted-foreground hover:border-primary/40"
                     )}
                   >
@@ -616,8 +656,8 @@ const AdminRelatorios = () => {
                 ))}
               </div>
             </div>
-            <Button onClick={handleAddExpense} className="w-full gradient-burger text-primary-foreground">
-              Salvar Gasto
+            <Button onClick={handleAddExpense} className={cn("w-full", expenseDialogType === 'income' ? "bg-green-500 hover:bg-green-600 text-white" : "gradient-burger text-primary-foreground")}>
+              {expenseDialogType === 'income' ? 'Salvar Entrada' : 'Salvar Gasto'}
             </Button>
           </div>
         </DialogContent>

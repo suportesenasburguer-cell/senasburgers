@@ -60,6 +60,9 @@ const Carrinho = () => {
 
     items.forEach((cartItem) => {
       let itemLine = `\n➡ ${cartItem.quantity}x ${cartItem.item.name}`;
+      if (cartItem.item.originalPrice && cartItem.item.originalPrice > cartItem.item.price) {
+        itemLine += ` (de ${formatPrice(cartItem.item.originalPrice)} por ${formatPrice(cartItem.item.price)})`;
+      }
       if (cartItem.addBatata || cartItem.bebida) {
         const extras = [
           cartItem.addBatata && '🍟 Batata',

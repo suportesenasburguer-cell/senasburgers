@@ -10,6 +10,7 @@ interface MenuItemCardProps {
     name: string;
     description: string;
     price: number;
+    promo_price?: number | null;
     image_url: string | null;
     is_popular: boolean;
     is_active: boolean;
@@ -46,7 +47,8 @@ const MenuItemCard = ({ item, index }: MenuItemCardProps) => {
   };
 
   const categorySlug = item.categories?.slug;
-  const displayPrice = lowestPrice !== null ? lowestPrice : item.price;
+  const hasPromoPrice = item.promo_price != null && item.promo_price > 0 && item.promo_price < item.price;
+  const displayPrice = lowestPrice !== null ? lowestPrice : (hasPromoPrice ? item.promo_price! : item.price);
   const hasMultipleSizes = lowestPrice !== null;
 
   return (
@@ -88,6 +90,11 @@ const MenuItemCard = ({ item, index }: MenuItemCardProps) => {
           <div>
             {hasMultipleSizes && (
               <span className="text-xs text-muted-foreground">A partir de </span>
+            )}
+            {hasPromoPrice && !hasMultipleSizes && (
+              <span className="text-xs text-muted-foreground line-through mr-1.5">
+                {formatPrice(item.price)}
+              </span>
             )}
             <span
               className={cn(
