@@ -1,4 +1,4 @@
-import { Package, LayoutGrid, Gift, Layers, Tag, Star, ClipboardList, BarChart3, LogOut, Home, Ticket, Image as ImageIcon, Eye, MapPin, Users, Truck } from 'lucide-react';
+import { Package, LayoutGrid, Gift, Layers, Tag, Star, ClipboardList, BarChart3, LogOut, Home, Ticket, Image as ImageIcon, Eye, MapPin, Users, Truck, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/use-auth';
 import {
@@ -15,7 +15,7 @@ import {
   SidebarSeparator,
 } from '@/components/ui/sidebar';
 
-type AdminTab = 'products' | 'categories' | 'upsells' | 'promotions' | 'addons' | 'rewards' | 'coupons' | 'banners' | 'neighborhoods' | 'users' | 'drivers';
+type AdminTab = 'products' | 'categories' | 'upsells' | 'promotions' | 'addons' | 'rewards' | 'coupons' | 'banners' | 'neighborhoods' | 'users' | 'drivers' | 'store-hours';
 
 interface AdminSidebarProps {
   activeTab: AdminTab;
@@ -34,6 +34,7 @@ const menuItems: { tab: AdminTab; label: string; icon: typeof Package }[] = [
   { tab: 'neighborhoods', label: 'Bairros / Entregas', icon: MapPin },
   { tab: 'users', label: 'Usuários', icon: Users },
   { tab: 'drivers', label: 'Entregadores', icon: Truck },
+  { tab: 'store-hours', label: 'Horários da Loja', icon: Clock },
 ];
 
 const AdminSidebar = ({ activeTab, onTabChange }: AdminSidebarProps) => {

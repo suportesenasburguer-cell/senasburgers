@@ -23,6 +23,9 @@ export interface DbProduct {
   is_hidden: boolean;
   sort_order: number;
   created_at: string;
+  badge_enabled: boolean;
+  badge_text: string | null;
+  badge_color: string | null;
   categories?: { name: string; slug: string; icon: string } | null;
 }
 

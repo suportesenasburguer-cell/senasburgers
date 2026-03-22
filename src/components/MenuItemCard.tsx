@@ -16,6 +16,9 @@ interface MenuItemCardProps {
     is_active: boolean;
     category_id: string;
     categories?: { name: string; slug: string; icon: string } | null;
+    badge_enabled?: boolean;
+    badge_text?: string | null;
+    badge_color?: string | null;
   };
   index: number;
 }
@@ -75,6 +78,14 @@ const MenuItemCard = ({ item, index }: MenuItemCardProps) => {
           {item.is_popular && item.is_active && (
             <span className="inline-block gradient-burger text-primary-foreground text-xs font-bold px-2 py-0.5 rounded mb-2 w-fit">
               MAIS PEDIDO
+            </span>
+          )}
+          {item.badge_enabled && item.badge_text && item.is_active && (
+            <span
+              className="inline-block text-white text-xs font-bold px-2 py-0.5 rounded mb-2 w-fit"
+              style={{ backgroundColor: item.badge_color || '#22c55e' }}
+            >
+              {item.badge_text}
             </span>
           )}
 

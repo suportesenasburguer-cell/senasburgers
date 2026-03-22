@@ -16,6 +16,7 @@ import BannerTab from '@/components/BannerTab';
 import NeighborhoodsTab from '@/components/NeighborhoodsTab';
 import UsersTab from '@/components/UsersTab';
 import DriversTab from '@/components/DriversTab';
+import StoreHoursTab from '@/components/StoreHoursTab';
 import {
   DndContext,
   closestCenter,
@@ -59,6 +60,9 @@ interface Product {
   is_hidden: boolean;
   sort_order: number;
   created_at: string;
+  badge_enabled: boolean;
+  badge_text: string | null;
+  badge_color: string | null;
 }
 
 interface ProductSize {
@@ -152,7 +156,7 @@ const Admin = () => {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [addons, setAddons] = useState<Addon[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
-  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'upsells' | 'promotions' | 'addons' | 'rewards' | 'coupons' | 'banners' | 'neighborhoods' | 'users' | 'drivers'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'upsells' | 'promotions' | 'addons' | 'rewards' | 'coupons' | 'banners' | 'neighborhoods' | 'users' | 'drivers' | 'store-hours'>('products');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [loading, setLoading] = useState(true);
 
@@ -160,7 +164,8 @@ const Admin = () => {
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState({
-    name: '', description: '', price: '', promo_price: '', category_id: '', is_popular: false, image_url: ''
+    name: '', description: '', price: '', promo_price: '', category_id: '', is_popular: false, image_url: '',
+    badge_enabled: false, badge_text: 'NOVIDADE', badge_color: '#22c55e'
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
 
@@ -271,6 +276,9 @@ const Admin = () => {
         category_id: productForm.category_id,
         is_popular: productForm.is_popular,
         image_url: imageUrl || null,
+        badge_enabled: productForm.badge_enabled,
+        badge_text: productForm.badge_text || 'NOVIDADE',
+        badge_color: productForm.badge_color || '#22c55e',
       };
 
       console.log('Product payload:', payload);
@@ -320,6 +328,9 @@ const Admin = () => {
       category_id: p.category_id,
       is_popular: p.is_popular,
       image_url: p.image_url || '',
+      badge_enabled: p.badge_enabled ?? false,
+      badge_text: p.badge_text || 'NOVIDADE',
+      badge_color: p.badge_color || '#22c55e',
     });
     setShowProductForm(true);
     // Fetch sizes for this product
@@ -333,7 +344,7 @@ const Admin = () => {
   };
 
   const resetProductForm = () => {
-    setProductForm({ name: '', description: '', price: '', promo_price: '', category_id: '', is_popular: false, image_url: '' });
+    setProductForm({ name: '', description: '', price: '', promo_price: '', category_id: '', is_popular: false, image_url: '', badge_enabled: false, badge_text: 'NOVIDADE', badge_color: '#22c55e' });
     setEditingProduct(null);
     setImageFile(null);
     setShowProductForm(false);
@@ -874,6 +885,66 @@ const Admin = () => {
                       <span className="text-sm">{productForm.is_popular ? 'Popular' : 'Normal'}</span>
                     </button>
                   </div>
+
+                  {/* Badge / Etiqueta personalizada */}
+                  <div className="md:col-span-2 border border-border rounded-xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Tag className="w-4 h-4 text-primary" />
+                        <span className="text-sm font-semibold text-foreground">Etiqueta Personalizada</span>
+                      </div>
+                      <button
+                        onClick={() => setProductForm(f => ({ ...f, badge_enabled: !f.badge_enabled }))}
+                        className={cn(
+                          'relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors',
+                          productForm.badge_enabled ? 'bg-primary' : 'bg-muted'
+                        )}
+                      >
+                        <span className={cn(
+                          'pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform',
+                          productForm.badge_enabled ? 'translate-x-5' : 'translate-x-0'
+                        )} />
+                      </button>
+                    </div>
+                    {productForm.badge_enabled && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs text-muted-foreground mb-1 block">Texto da etiqueta</label>
+                          <Input
+                            value={productForm.badge_text}
+                            onChange={e => setProductForm(f => ({ ...f, badge_text: e.target.value }))}
+                            placeholder="Ex: NOVIDADE, LANÇAMENTO"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground mb-1 block">Cor da etiqueta</label>
+                          <div className="flex gap-2 items-center">
+                            <input
+                              type="color"
+                              value={productForm.badge_color}
+                              onChange={e => setProductForm(f => ({ ...f, badge_color: e.target.value }))}
+                              className="w-10 h-10 rounded-lg border border-input cursor-pointer"
+                            />
+                            <Input
+                              value={productForm.badge_color}
+                              onChange={e => setProductForm(f => ({ ...f, badge_color: e.target.value }))}
+                              placeholder="#22c55e"
+                              className="flex-1"
+                            />
+                          </div>
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="text-xs text-muted-foreground mb-1 block">Pré-visualização</label>
+                          <span
+                            className="inline-block text-white text-xs font-bold px-2 py-0.5 rounded"
+                            style={{ backgroundColor: productForm.badge_color }}
+                          >
+                            {productForm.badge_text || 'NOVIDADE'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Product Sizes - only show when editing */}
@@ -958,6 +1029,11 @@ const Admin = () => {
                             <div className="flex items-center gap-2 mb-0.5">
                               <h4 className="font-semibold text-foreground line-clamp-1">{p.name}</h4>
                               {p.is_popular && <Star className="w-4 h-4 text-primary flex-shrink-0 fill-primary" />}
+                              {p.badge_enabled && p.badge_text && (
+                                <span className="inline-block text-white text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: p.badge_color || '#22c55e' }}>
+                                  {p.badge_text}
+                                </span>
+                              )}
                               {p.is_hidden && (
                                 <span className="inline-block bg-muted text-muted-foreground text-xs font-bold px-2 py-0.5 rounded">OCULTO</span>
                               )}
@@ -2072,6 +2148,9 @@ const Admin = () => {
 
         {/* DRIVERS TAB */}
         {activeTab === 'drivers' && <DriversTab />}
+
+        {/* STORE HOURS TAB */}
+        {activeTab === 'store-hours' && <StoreHoursTab />}
           </div>
         </main>
       </div>

@@ -64,7 +64,7 @@ const AdminPedidos = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('active');
-  const [orderCount, setOrderCount] = useState(0);
+  
   const [showSoundSettings, setShowSoundSettings] = useState(false);
   const [previewOrderId, setPreviewOrderId] = useState<string | null>(null);
   const [receiptFont, setReceiptFont] = useState(() => localStorage.getItem('receipt-font') || RECEIPT_FONTS[0].value);
@@ -134,28 +134,57 @@ const AdminPedidos = () => {
     if (isAdmin) fetchOrders();
   }, [isAdmin, fetchOrders]);
 
-  // Track order count for sound alerts
+  // Persistent alarm: repeat sound every 5s while there are 'sent' orders
   useEffect(() => {
-    setOrderCount(orders.length);
-  }, [orders.length]);
+    const hasSentOrders = orders.some(o => o.status === 'sent');
+    if (!hasSentOrders) return;
 
-  // Real-time subscription with sound alert
+    // Play immediately when sent orders are detected
+    playSelectedSound();
+
+    const intervalId = setInterval(() => {
+      playSelectedSound();
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [orders]);
+
+  // Real-time subscription with reconnection + polling fallback
   useEffect(() => {
     if (!isAdmin) return;
 
+    let pollingId: ReturnType<typeof setInterval>;
+
     const channel = (supabase as any)
-      .channel('admin-orders')
+      .channel('admin-orders-realtime')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'customer_orders' }, () => {
-        playSelectedSound();
         toast({ title: '🔔 Novo pedido recebido!' });
         fetchOrders();
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'customer_orders' }, () => {
         fetchOrders();
       })
-      .subscribe();
+      .subscribe((status: string) => {
+        console.log('[Pedidos Realtime] Status:', status);
+        if (status === 'SUBSCRIBED') {
+          // Realtime is working, use a slow poll as safety net
+          clearInterval(pollingId);
+          pollingId = setInterval(fetchOrders, 30000);
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          // Realtime failed, poll more frequently
+          console.warn('[Pedidos Realtime] Fallback to fast polling');
+          clearInterval(pollingId);
+          pollingId = setInterval(fetchOrders, 10000);
+        }
+      });
 
-    return () => { (supabase as any).removeChannel(channel); };
+    // Initial safety-net poll
+    pollingId = setInterval(fetchOrders, 15000);
+
+    return () => {
+      clearInterval(pollingId);
+      (supabase as any).removeChannel(channel);
+    };
   }, [isAdmin, fetchOrders]);
 
   const advanceStatus = async (order: Order) => {
@@ -361,7 +390,7 @@ const AdminPedidos = () => {
             const nextStatus = canAdvance ? STATUS_FLOW[STATUS_FLOW.indexOf(order.status) + 1] : null;
 
             return (
-              <div key={order.id} className="bg-card border border-border rounded-xl p-5">
+              <div key={order.id} className={cn("bg-card border rounded-xl p-5", order.status === 'sent' ? 'border-primary animate-pulse shadow-lg shadow-primary/20' : 'border-border')}>
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div>
                     <div className="flex items-center gap-2 mb-1">

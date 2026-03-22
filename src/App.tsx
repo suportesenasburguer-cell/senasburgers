@@ -23,6 +23,10 @@ import AdminEntregadores from "./pages/AdminEntregadores";
 import VisitorTracker from "./components/VisitorTracker";
 import Loja from "./pages/Loja";
 import NotFound from "./pages/NotFound";
+import { preloadStoreHours } from "./lib/store-hours";
+
+// Preload store hours config on app start
+preloadStoreHours();
 
 const queryClient = new QueryClient({
   defaultOptions: {
