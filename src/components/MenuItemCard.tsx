@@ -70,7 +70,7 @@ const MenuItemCard = ({ item, index }: MenuItemCardProps) => {
         {!item.is_active && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur-[2px] rounded-xl">
             <span className="bg-destructive text-destructive-foreground text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wider">
-              Indisponível
+              Esgotado
             </span>
           </div>
         )}

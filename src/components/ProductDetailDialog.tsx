@@ -403,7 +403,7 @@ const ProductDetailDialog = ({ item, open, onOpenChange }: ProductDetailDialogPr
                               <p className="text-sm font-medium text-foreground">{a.name}</p>
                               {!a.is_active && (
                                 <span className="text-[10px] font-bold uppercase bg-destructive/20 text-destructive px-1.5 py-0.5 rounded">
-                                  Indisponível
+                                  Esgotado
                                 </span>
                               )}
                             </div>

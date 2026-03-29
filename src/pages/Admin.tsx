@@ -1038,7 +1038,7 @@ const Admin = () => {
                                 <span className="inline-block bg-muted text-muted-foreground text-xs font-bold px-2 py-0.5 rounded">OCULTO</span>
                               )}
                               {!p.is_active && !p.is_hidden && (
-                                <span className="inline-block bg-destructive/20 text-destructive text-xs font-bold px-2 py-0.5 rounded">INDISPONÍVEL</span>
+                                <span className="inline-block bg-destructive/20 text-destructive text-xs font-bold px-2 py-0.5 rounded">ESGOTADO</span>
                               )}
                             </div>
                             <p className="text-sm text-muted-foreground line-clamp-1">{p.description}</p>
@@ -1068,11 +1068,11 @@ const Admin = () => {
                                 const newActive = !p.is_active;
                                 const { error } = await (supabase as any).from('products').update({ is_active: newActive }).eq('id', p.id);
                                 if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
-                                toast({ title: newActive ? 'Produto ativado!' : 'Produto indisponível!' });
+                                toast({ title: newActive ? 'Produto ativado!' : 'Produto esgotado!' });
                                 fetchData();
                               }}
                               className={p.is_active ? 'text-green-500 hover:text-yellow-500' : 'text-yellow-500 hover:text-green-500'}
-                              title={p.is_active ? 'Marcar indisponível' : 'Ativar produto'}
+                              title={p.is_active ? 'Marcar esgotado' : 'Ativar produto'}
                             >
                               {p.is_active ? <PauseCircle className="w-4 h-4" /> : <PlayCircle className="w-4 h-4" />}
                             </Button>
