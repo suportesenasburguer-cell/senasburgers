@@ -17,7 +17,7 @@ const Footer = () => {
               <span className="text-foreground"> Burgers</span>
             </h3>
             <p className="text-muted-foreground">
-              Hambúrgueres artesanais feitos com aquele sabor que só a Sena's tem.
+              Hambúrgueres artesanais feitos com aquele sabor que só o Sena's tem.
             </p>
           </div>
 
